@@ -1,79 +1,97 @@
 import { HealthRecord, GlucoseReading } from '../types';
 import { isSameDay, parseISO } from 'date-fns';
 
-const STORAGE_KEY = 'glusure_data';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const getRecords = async (): Promise<HealthRecord[]> => {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return [];
-    return JSON.parse(data);
+    if (!API_URL) {
+        console.warn('VITE_API_URL is not defined, using localStorage fallback');
+        const data = localStorage.getItem('glusure_data');
+        return data ? JSON.parse(data) : [];
+    }
+
+    try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error('Failed to fetch records from GAS:', e);
+        return [];
+    }
 };
 
 export const saveRecord = async (record: HealthRecord): Promise<void> => {
-    const currentData = await getRecords();
+    if (!API_URL) {
+        // Fallback to local storage logic if needed, but for now we focus on GAS
+        console.error('VITE_API_URL is not defined');
+        return;
+    }
+
+    const currentRecords = await getRecords();
     const recordDate = parseISO(record.timestamp);
+    const existingRecord = currentRecords.find(r => isSameDay(parseISO(r.timestamp), recordDate) && r.name === record.name);
 
-    // 1. Check if there is already a record for this day
-    const existingRecordIndex = currentData.findIndex(r => isSameDay(parseISO(r.timestamp), recordDate) && r.name === record.name);
+    let payload: any = { action: 'save', record: record };
 
-    if (existingRecordIndex >= 0) {
-        // === MERGE LOGIC ===
-        const existing = currentData[existingRecordIndex];
+    if (existingRecord) {
+        // Prepare merged record logic similar to before, but sent to GAS
         let details: GlucoseReading[] = [];
         try {
-            details = existing.details ? JSON.parse(existing.details) : [];
+            details = existingRecord.details ? JSON.parse(existingRecord.details) : [];
         } catch (e) { console.error(e); }
 
-        // Add new glucose readings to details with timestamp
         if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
         if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
         if (record.glucoseRandom) details.push({ type: 'random', value: record.glucoseRandom, timestamp: record.timestamp });
 
-        // Update main fields if provided (Last write wins strategy for vitals)
         const updatedRecord: HealthRecord = {
-            ...existing,
-            weight: record.weight > 0 ? record.weight : existing.weight,
-            systolic: record.systolic > 0 ? record.systolic : existing.systolic,
-            diastolic: record.diastolic > 0 ? record.diastolic : existing.diastolic,
-            heartRate: record.heartRate && record.heartRate > 0 ? record.heartRate : existing.heartRate,
-            // Update glucose summary fields only if new values are provided
-            glucoseFasting: record.glucoseFasting || existing.glucoseFasting,
-            glucosePostMeal: record.glucosePostMeal || existing.glucosePostMeal,
-            glucoseRandom: record.glucoseRandom || existing.glucoseRandom,
+            ...existingRecord,
+            weight: record.weight > 0 ? record.weight : existingRecord.weight,
+            systolic: record.systolic > 0 ? record.systolic : existingRecord.systolic,
+            diastolic: record.diastolic > 0 ? record.diastolic : existingRecord.diastolic,
+            heartRate: record.heartRate && record.heartRate > 0 ? record.heartRate : existingRecord.heartRate,
+            glucoseFasting: record.glucoseFasting || existingRecord.glucoseFasting,
+            glucosePostMeal: record.glucosePostMeal || existingRecord.glucosePostMeal,
+            glucoseRandom: record.glucoseRandom || existingRecord.glucoseRandom,
             details: JSON.stringify(details),
-            // Keep original daily timestamp or update? 
-            // User says "Daily Record", so keeping the original date makes sense for list sorting by day,
-            // but we might want to know when the last update was. For now, keep original ID and timestamp.
         };
-
-        currentData[existingRecordIndex] = updatedRecord;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
-
+        payload.record = updatedRecord;
     } else {
-        // === CREATE NEW LOGIC ===
+        // New record logic
         const details: GlucoseReading[] = [];
         if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
         if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
         if (record.glucoseRandom) details.push({ type: 'random', value: record.glucoseRandom, timestamp: record.timestamp });
 
-        const newRecord = {
+        payload.record = {
             ...record,
-            id: Date.now().toString(),
+            id: record.id || Date.now().toString(),
             details: JSON.stringify(details)
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...currentData, newRecord]));
     }
+
+    await callGasApi(payload);
 };
 
 export const updateRecord = async (record: HealthRecord): Promise<void> => {
-    // Direct update without merging logic (for Edit button)
-    const currentData = await getRecords();
-    const updated = currentData.map(r => r.id === record.id ? record : r);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    await callGasApi({ action: 'save', record });
 };
 
 export const deleteRecord = async (id: string): Promise<void> => {
-    const currentData = await getRecords();
-    const updated = currentData.filter(r => r.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    await callGasApi({ action: 'delete', id });
 };
+
+async function callGasApi(payload: any) {
+    if (!API_URL) return;
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors', // GAS web app requires no-cors for simple POST or it redirects
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (e) {
+        console.error('GAS API Call failed:', e);
+    }
+}
+
