@@ -1,5 +1,5 @@
 import { HealthRecord, GlucoseReading } from '../types';
-import { isSameDay, parseISO } from 'date-fns';
+
 
 const API_URL = import.meta.env.VITE_API_URL;
 
