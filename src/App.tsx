@@ -102,6 +102,7 @@ function App() {
                             setEditingRecord(null);
                             setIsFormOpen(true);
                         }}
+                        onEditRecord={handleEditRecord}
                     />
                 )}
 

@@ -7,9 +7,10 @@ import { AlertCircle, Plus } from 'lucide-react';
 interface DashboardProps {
     records: HealthRecord[];
     onAddRecord: () => void;
+    onEditRecord: (record: HealthRecord) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ records, onAddRecord }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ records, onAddRecord, onEditRecord }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
 
     // Check for alerts
@@ -52,8 +53,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onAddRecord }) =>
                             key={range.value}
                             onClick={() => setTimeRange(range.value)}
                             className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
-                                    ? 'bg-white text-teal-600 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-900'
+                                ? 'bg-white text-teal-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-900'
                                 }`}
                         >
                             {range.label}
@@ -71,7 +72,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onAddRecord }) =>
             </div>
 
             {/* Charts */}
-            <ChartSection records={records} timeRange={timeRange} />
+            <ChartSection records={records} timeRange={timeRange} onDataClick={onEditRecord} />
         </div>
     );
 };

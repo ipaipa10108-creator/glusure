@@ -86,8 +86,11 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange, 
                 label: '體重 (kg)',
                 data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
                 borderColor: 'rgb(53, 162, 235)',
-                backgroundColor: 'rgba(53, 162, 235, 0.5)',
+                backgroundColor: 'rgba(53, 162, 235, 0.2)', // More transparent for fill
                 yAxisID: 'y',
+                fill: true, // Enable fill
+                spanGaps: true, // Connect lines over nulls
+                tension: 0.4, // Smooth curve
             },
         ],
     };
@@ -97,15 +100,17 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange, 
         datasets: [
             {
                 label: '收縮壓',
-                data: filteredRecords.map(r => r.systolic),
+                data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                spanGaps: true,
             },
             {
                 label: '舒張壓',
-                data: filteredRecords.map(r => r.diastolic),
+                data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null),
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                spanGaps: true,
             },
         ],
     };
@@ -115,21 +120,21 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange, 
         datasets: [
             {
                 label: '空腹血糖',
-                data: filteredRecords.map(r => r.glucoseFasting),
+                data: filteredRecords.map(r => r.glucoseFasting > 0 ? r.glucoseFasting : null),
                 borderColor: 'rgb(255, 159, 64)',
                 backgroundColor: 'rgba(255, 159, 64, 0.5)',
                 spanGaps: true,
             },
             {
                 label: '飯後血糖',
-                data: filteredRecords.map(r => r.glucosePostMeal),
+                data: filteredRecords.map(r => r.glucosePostMeal > 0 ? r.glucosePostMeal : null),
                 borderColor: 'rgb(153, 102, 255)',
                 backgroundColor: 'rgba(153, 102, 255, 0.5)',
                 spanGaps: true,
             },
             {
                 label: '臨時血糖',
-                data: filteredRecords.map(r => r.glucoseRandom),
+                data: filteredRecords.map(r => r.glucoseRandom > 0 ? r.glucoseRandom : null),
                 borderColor: 'rgb(201, 203, 207)',
                 backgroundColor: 'rgba(201, 203, 207, 0.5)',
                 spanGaps: true,
