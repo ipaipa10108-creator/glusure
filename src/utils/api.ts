@@ -12,8 +12,25 @@ export const getRecords = async (): Promise<HealthRecord[]> => {
 
     try {
         const response = await fetch(API_URL);
-        const data = await response.json();
-        return Array.isArray(data) ? data : [];
+        const rawData = await response.json();
+
+        if (!Array.isArray(rawData)) return [];
+
+        // Map snake_case from Sheet to camelCase for App
+        return rawData.map((item: any) => ({
+            id: String(item.id),
+            timestamp: item.timestamp,
+            name: item.name,
+            weight: Number(item.weight) || 0,
+            systolic: Number(item.systolic) || 0,
+            diastolic: Number(item.diastolic) || 0,
+            heartRate: Number(item.heart_rate) || 0,
+            glucoseFasting: Number(item.glucose_fasting) || 0,
+            glucosePostMeal: Number(item.glucose_post_meal) || 0,
+            glucoseRandom: Number(item.glucose_random) || 0,
+            details: item.details,
+            note: item.note
+        }));
     } catch (e) {
         console.error('Failed to fetch records from GAS:', e);
         return [];
@@ -22,7 +39,6 @@ export const getRecords = async (): Promise<HealthRecord[]> => {
 
 export const saveRecord = async (record: HealthRecord): Promise<void> => {
     if (!API_URL) {
-        // Fallback to local storage logic if needed, but for now we focus on GAS
         console.error('VITE_API_URL is not defined');
         return;
     }
@@ -34,7 +50,7 @@ export const saveRecord = async (record: HealthRecord): Promise<void> => {
     let payload: any = { action: 'save', record: record };
 
     if (existingRecord) {
-        // Prepare merged record logic similar to before, but sent to GAS
+        // Merge Logic
         let details: GlucoseReading[] = [];
         try {
             details = existingRecord.details ? JSON.parse(existingRecord.details) : [];
@@ -57,7 +73,7 @@ export const saveRecord = async (record: HealthRecord): Promise<void> => {
         };
         payload.record = updatedRecord;
     } else {
-        // New record logic
+        // Create Logic
         const details: GlucoseReading[] = [];
         if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
         if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
@@ -78,20 +94,22 @@ export const updateRecord = async (record: HealthRecord): Promise<void> => {
 };
 
 export const deleteRecord = async (id: string): Promise<void> => {
-    await callGasApi({ action: 'delete', id });
+    // Force ID to string to match simple logic
+    await callGasApi({ action: 'delete', id: String(id) });
 };
 
 async function callGasApi(payload: any) {
     if (!API_URL) return;
     try {
+        // Use text/plain to avoid preflight OPTIONS request which GAS doesn't handle
+        // GAS doPost(e) can parse contents independent of Content-Type
         await fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors', // GAS web app requires no-cors for simple POST or it redirects
-            headers: { 'Content-Type': 'application/json' },
+            mode: 'no-cors',
+            // Do NOT set Content-Type to application/json, it triggers preflight
             body: JSON.stringify(payload)
         });
     } catch (e) {
         console.error('GAS API Call failed:', e);
     }
 }
-

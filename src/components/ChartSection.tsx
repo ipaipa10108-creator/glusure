@@ -84,7 +84,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange, 
         datasets: [
             {
                 label: '體重 (kg)',
-                data: filteredRecords.map(r => r.weight),
+                data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
                 borderColor: 'rgb(53, 162, 235)',
                 backgroundColor: 'rgba(53, 162, 235, 0.5)',
                 yAxisID: 'y',

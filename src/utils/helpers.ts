@@ -10,7 +10,7 @@ export const isWeightAbnormal = (current: HealthRecord, history: HealthRecord[])
         return diff <= 24 && r.id !== current.id;
     });
 
-    if (recentRecord) {
+    if (recentRecord && current.weight > 0 && recentRecord.weight > 0) {
         const weightDiff = Math.abs(current.weight - recentRecord.weight);
         return weightDiff >= 2;
     }
