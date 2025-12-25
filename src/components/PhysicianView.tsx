@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { HealthRecord, GlucoseReading, TimeRange } from '../types';
-import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, isAfter, addDays, isSameDay } from 'date-fns';
+import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, isAfter, addDays, isSameDay, startOfDay } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { getGlucoseColor, getGlucoseStatus } from '../utils/helpers';
 import clsx from 'clsx';
@@ -14,7 +14,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
 
-    const filteredAndSortedRecords = useMemo(() => {
+    const groupedRecords = useMemo(() => {
         const now = new Date();
         let startDate: Date;
 
@@ -30,75 +30,143 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
 
         const filtered = records.filter(r => isAfter(parseISO(r.timestamp), startDate));
 
-        return filtered.sort((a, b) => {
-            const timeA = new Date(a.timestamp).getTime();
-            const timeB = new Date(b.timestamp).getTime();
+        // Group by Day
+        const groups: { [key: string]: HealthRecord[] } = {};
+        filtered.forEach(r => {
+            const dayKey = format(parseISO(r.timestamp), 'yyyy-MM-dd');
+            if (!groups[dayKey]) groups[dayKey] = [];
+            groups[dayKey].push(r);
+        });
+
+        // Convert to array and sort
+        const groupArray = Object.keys(groups).map(date => {
+            return {
+                date,
+                records: groups[date].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            };
+        });
+
+        return groupArray.sort((a, b) => {
+            const timeA = new Date(a.date).getTime();
+            const timeB = new Date(b.date).getTime();
             return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
         });
     }, [records, sortOrder, timeRange]);
 
     // Helper to find next day weight abnormality
-    const getNextDayWeightDiff = (record: HealthRecord) => {
-        const recordDate = parseISO(record.timestamp);
-        const nextDay = addDays(recordDate, 1);
-        const nextDayRecord = records.find(r => isSameDay(parseISO(r.timestamp), nextDay));
+    const getNextDayWeightDiff = (currentDateStr: string, currentDayRecords: HealthRecord[]) => {
+        // Average weight for the day? Or latest? Let's use latest.
+        const latestWeight = currentDayRecords.filter(r => r.weight > 0).pop()?.weight;
+        if (!latestWeight) return { isAbnormal: false, diff: 0 };
 
-        if (nextDayRecord) {
-            const diff = nextDayRecord.weight - record.weight;
-            if (diff >= 2) return { isAbnormal: true, diff };
+        const currentDate = parseISO(currentDateStr);
+        const nextDay = addDays(currentDate, 1);
+
+        // Find next day records
+        const nextDayRecords = records.filter(r => isSameDay(parseISO(r.timestamp), nextDay) && r.weight > 0);
+        const nextDayWeight = nextDayRecords.length > 0 ? nextDayRecords[nextDayRecords.length - 1].weight : null;
+
+        if (nextDayWeight) {
+            const diff = nextDayWeight - latestWeight;
+            if (Math.abs(diff) >= 2) return { isAbnormal: true, diff };
         }
         return { isAbnormal: false, diff: 0 };
     };
 
-    const renderGlucoseDetails = (record: HealthRecord) => {
-        let details: GlucoseReading[] = [];
-        try {
-            if (record.details) {
-                details = JSON.parse(record.details);
-            }
-        } catch (e) {
-            console.error('Failed to parse details', e);
-        }
+    const renderGlucoseDetailsForDay = (dayRecords: HealthRecord[]) => {
+        // Aggregate all glucose readings for the day
+        let allReadings: GlucoseReading[] = [];
 
-        // Fallback if no details but old fields exist (compatibility)
-        if (details.length === 0) {
-            if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
-            if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
-        }
+        dayRecords.forEach(r => {
+            try {
+                if (r.details) {
+                    const details: GlucoseReading[] = JSON.parse(r.details);
+                    allReadings = [...allReadings, ...details];
+                } else {
+                    // Fallback using independent fields
+                    if (r.glucoseFasting) allReadings.push({ type: 'fasting', value: r.glucoseFasting, timestamp: r.timestamp });
+                    if (r.glucosePostMeal) allReadings.push({ type: 'postMeal', value: r.glucosePostMeal, timestamp: r.timestamp });
+                    if (r.glucoseRandom) allReadings.push({ type: 'random', value: r.glucoseRandom, timestamp: r.timestamp });
+                }
+            } catch (e) { }
+        });
 
-        // Sort details by timestamp if available
-        details.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        // Deduplicate based on timestamp and type (optional but good for safety)
+        const uniqueReadings = allReadings.filter((v, i, a) => a.findIndex(t => t.timestamp === v.timestamp && t.type === v.type) === i);
 
-        // Grouping/Pairing logic for display
-        // e.g., Find Fasting then next PostMeal
-        const elements = [];
-        for (let i = 0; i < details.length; i++) {
-            const item = details[i];
-            const status = getGlucoseStatus(item.value, item.type);
+        // Sort by timestamp
+        uniqueReadings.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+        // Sort to prioritize Fasting -> PostMeal for display if timestamps are close or just for layout?
+        // User wants: Fasting first, then PostMeal.
+        // If we strictly follow time, usually Fasting IS before PostMeal. 
+        // But if there are multiple pairs, we show them in time order.
+
+        const elements: JSX.Element[] = [];
+
+        // Logic to pair Fasting with NEXT PostMeal
+        const processedIndices = new Set<number>();
+
+        for (let i = 0; i < uniqueReadings.length; i++) {
+            if (processedIndices.has(i)) continue;
+
+            const current = uniqueReadings[i];
+
+            // Render Current
+            const status = getGlucoseStatus(current.value, current.type);
             const colorClass = getGlucoseColor(status);
-            const typeLabel = item.type === 'fasting' ? '空腹' : item.type === 'postMeal' ? '飯後' : '臨時';
+            const typeLabel = current.type === 'fasting' ? '空腹' : current.type === 'postMeal' ? '飯後' : '臨時';
+            const timeStr = format(parseISO(current.timestamp), 'HH:mm');
 
             elements.push(
-                <span key={i} className={clsx("px-2 py-0.5 rounded text-xs w-fit mr-1 mb-1", colorClass)}>
-                    {typeLabel}: {item.value}
+                <span key={`item-${i}`} className={clsx("px-2 py-1 rounded text-xs w-fit mr-1 mb-1 flex items-center gap-1", colorClass)}>
+                    <span className="opacity-75 text-[10px]">{timeStr}</span>
+                    <span className="font-bold">{typeLabel}: {current.value}</span>
                 </span>
             );
 
-            // Check for interval to next item if it forms a pair (Fasting -> PostMeal)
-            if (item.type === 'fasting' && i + 1 < details.length) {
-                const nextItem = details[i + 1];
-                if (nextItem.type === 'postMeal') {
-                    const diffMins = differenceInMinutes(parseISO(nextItem.timestamp), parseISO(item.timestamp));
+            processedIndices.add(i);
+
+            // If Fasting, look for next PostMeal that hasn't been processed
+            if (current.type === 'fasting') {
+                // Find next postMeal
+                let pairIndex = -1;
+                for (let j = i + 1; j < uniqueReadings.length; j++) {
+                    if (!processedIndices.has(j) && uniqueReadings[j].type === 'postMeal') {
+                        pairIndex = j;
+                        break;
+                    }
+                }
+
+                if (pairIndex !== -1) {
+                    const pair = uniqueReadings[pairIndex];
+                    const diffMins = differenceInMinutes(parseISO(pair.timestamp), parseISO(current.timestamp));
                     const hours = Math.floor(diffMins / 60);
                     const mins = diffMins % 60;
+
                     elements.push(
-                        <span key={`diff-${i}`} className="text-xs text-gray-400 mx-1 mb-1">
-                            (相隔 {hours}小時{mins}分) →
+                        <span key={`diff-${i}`} className="text-xs text-slate-400 mx-1 mb-1 flex items-center">
+                            → ({hours}h {mins}m) →
                         </span>
                     );
+
+                    // Render Pair
+                    const pairStatus = getGlucoseStatus(pair.value, pair.type);
+                    const pairColor = getGlucoseColor(pairStatus);
+                    const pairTimeStr = format(parseISO(pair.timestamp), 'HH:mm');
+
+                    elements.push(
+                        <span key={`item-${pairIndex}`} className={clsx("px-2 py-1 rounded text-xs w-fit mr-1 mb-1 flex items-center gap-1", pairColor)}>
+                            <span className="opacity-75 text-[10px]">{pairTimeStr}</span>
+                            <span className="font-bold">飯後: {pair.value}</span>
+                        </span>
+                    );
+
+                    processedIndices.add(pairIndex);
                 }
             }
         }
+
         return <div className="flex flex-wrap items-center">{elements}</div>;
     };
 
@@ -114,11 +182,11 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
 
     return (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
-            {/* Header & Controls */}
+            {/* Header & Controls - unchanged mostly */}
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                     <Activity className="w-5 h-5 mr-2 text-teal-600" />
-                    醫師檢視模式
+                    醫師檢視模式 (每日彙整)
                 </h3>
 
                 <div className="flex items-center gap-2 overflow-x-auto max-w-full">
@@ -152,38 +220,51 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
                     <thead className="bg-gray-50">
                         <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">體重 (未來24小時變化)</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">血壓 (mmHg) / 心跳 (bpm)</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">血糖監測 (mg/dL)</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">體重 (最新/變化)</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">血壓 (最新)</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">血糖監測 (時間軸)</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredAndSortedRecords.map((record) => {
-                            const { isAbnormal: weightAbnormal, diff: weightDiff } = getNextDayWeightDiff(record);
+                        {groupedRecords.map(({ date, records: dayRecords }) => {
+                            const { isAbnormal: weightAbnormal, diff: weightDiff } = getNextDayWeightDiff(date, dayRecords);
+
+                            // Get latest metrics for the day
+                            const latestWeight = dayRecords.filter(r => r.weight > 0).pop()?.weight;
+                            const latestBPRecord = dayRecords.filter(r => r.systolic > 0).pop();
 
                             return (
-                                <tr key={record.id} className="hover:bg-gray-50 transition-colors">
+                                <tr key={date} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium align-top">
-                                        {format(parseISO(record.timestamp), 'yyyy/MM/dd HH:mm', { locale: zhTW })}
+                                        {format(parseISO(date), 'yyyy/MM/dd (eee)', { locale: zhTW })}
+                                        <div className="text-xs text-gray-400 font-normal mt-1">{dayRecords.length} 筆紀錄</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm align-top">
-                                        <span className={clsx(weightAbnormal ? "text-red-600 font-bold" : "text-gray-700")}>
-                                            {record.weight}
-                                        </span>
-                                        {weightAbnormal && (
-                                            <div className="text-xs text-red-500 mt-1">
-                                                ⚠️ 24h後 +{weightDiff.toFixed(1)}kg
-                                            </div>
-                                        )}
+                                        {latestWeight ? (
+                                            <>
+                                                <span className={clsx(weightAbnormal ? "text-red-600 font-bold" : "text-gray-700")}>
+                                                    {latestWeight} kg
+                                                </span>
+                                                {weightAbnormal && (
+                                                    <div className="text-xs text-red-500 mt-1">
+                                                        ⚠️ 隔日 +{weightDiff.toFixed(1)}kg
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : <span className="text-gray-300">-</span>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 align-top">
-                                        <div>BP: {record.systolic} / {record.diastolic}</div>
-                                        {record.heartRate && (
-                                            <div className="text-gray-500 text-xs mt-1">HR: {record.heartRate}</div>
-                                        )}
+                                        {latestBPRecord ? (
+                                            <>
+                                                <div>BP: {latestBPRecord.systolic} / {latestBPRecord.diastolic}</div>
+                                                {latestBPRecord.heartRate ? (
+                                                    <div className="text-gray-500 text-xs mt-1">HR: {latestBPRecord.heartRate}</div>
+                                                ) : null}
+                                            </>
+                                        ) : <span className="text-gray-300">-</span>}
                                     </td>
                                     <td className="px-6 py-4 text-sm align-top">
-                                        {renderGlucoseDetails(record)}
+                                        {renderGlucoseDetailsForDay(dayRecords)}
                                     </td>
                                 </tr>
                             );

@@ -17,20 +17,33 @@ export const getRecords = async (): Promise<HealthRecord[]> => {
         if (!Array.isArray(rawData)) return [];
 
         // Map snake_case from Sheet to camelCase for App
-        return rawData.map((item: any) => ({
-            id: String(item.id),
-            timestamp: item.timestamp,
-            name: item.name,
-            weight: Number(item.weight) || 0,
-            systolic: Number(item.systolic) || 0,
-            diastolic: Number(item.diastolic) || 0,
-            heartRate: Number(item.heart_rate) || 0,
-            glucoseFasting: Number(item.glucose_fasting) || 0,
-            glucosePostMeal: Number(item.glucose_post_meal) || 0,
-            glucoseRandom: Number(item.glucose_random) || 0,
-            details: item.details,
-            note: item.note
-        }));
+        // And ensure details is parsed or constructed if missing
+        return rawData.map((item: any) => {
+            // Construct details from individual fields if details is empty (backward compatibility or new independent records)
+            let details = item.details;
+            if (!details || details === '[]') {
+                const generatedDetails: GlucoseReading[] = [];
+                if (item.glucose_fasting) generatedDetails.push({ type: 'fasting', value: Number(item.glucose_fasting), timestamp: item.timestamp });
+                if (item.glucose_post_meal) generatedDetails.push({ type: 'postMeal', value: Number(item.glucose_post_meal), timestamp: item.timestamp });
+                if (item.glucose_random) generatedDetails.push({ type: 'random', value: Number(item.glucose_random), timestamp: item.timestamp });
+                details = JSON.stringify(generatedDetails);
+            }
+
+            return {
+                id: String(item.id),
+                timestamp: item.timestamp,
+                name: item.name,
+                weight: Number(item.weight) || 0,
+                systolic: Number(item.systolic) || 0,
+                diastolic: Number(item.diastolic) || 0,
+                heartRate: Number(item.heart_rate) || 0,
+                glucoseFasting: Number(item.glucose_fasting) || 0,
+                glucosePostMeal: Number(item.glucose_post_meal) || 0,
+                glucoseRandom: Number(item.glucose_random) || 0,
+                details: details,
+                note: item.note
+            };
+        });
     } catch (e) {
         console.error('Failed to fetch records from GAS:', e);
         return [];
@@ -43,70 +56,41 @@ export const saveRecord = async (record: HealthRecord): Promise<void> => {
         return;
     }
 
-    const currentRecords = await getRecords();
-    const recordDate = parseISO(record.timestamp);
-    const existingRecord = currentRecords.find(r => isSameDay(parseISO(r.timestamp), recordDate) && r.name === record.name);
+    // INDEPENDENT RECORD MODE: No merging. Always create new or update specific ID.
+    // If record has ID, it's an update. If not, it's a create.
 
-    let payload: any = { action: 'save', record: record };
+    let isUpdate = !!record.id;
+    let payload: any = { action: 'save' };
 
-    if (existingRecord) {
-        // Merge Logic
-        let details: GlucoseReading[] = [];
-        try {
-            details = existingRecord.details ? JSON.parse(existingRecord.details) : [];
-        } catch (e) { console.error(e); }
+    // Prepare details JSON for the single record
+    const details: GlucoseReading[] = [];
+    if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
+    if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
+    if (record.glucoseRandom) details.push({ type: 'random', value: record.glucoseRandom, timestamp: record.timestamp });
 
-        if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
-        if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
-        if (record.glucoseRandom) details.push({ type: 'random', value: record.glucoseRandom, timestamp: record.timestamp });
-
-        const updatedRecord: HealthRecord = {
-            ...existingRecord,
-            weight: record.weight > 0 ? record.weight : existingRecord.weight,
-            systolic: record.systolic > 0 ? record.systolic : existingRecord.systolic,
-            diastolic: record.diastolic > 0 ? record.diastolic : existingRecord.diastolic,
-            heartRate: record.heartRate && record.heartRate > 0 ? record.heartRate : existingRecord.heartRate,
-            glucoseFasting: record.glucoseFasting || existingRecord.glucoseFasting,
-            glucosePostMeal: record.glucosePostMeal || existingRecord.glucosePostMeal,
-            glucoseRandom: record.glucoseRandom || existingRecord.glucoseRandom,
-            details: JSON.stringify(details),
-        };
-        payload.record = updatedRecord;
-    } else {
-        // Create Logic
-        const details: GlucoseReading[] = [];
-        if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
-        if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
-        if (record.glucoseRandom) details.push({ type: 'random', value: record.glucoseRandom, timestamp: record.timestamp });
-
-        payload.record = {
-            ...record,
-            id: record.id || Date.now().toString(),
-            details: JSON.stringify(details)
-        };
-    }
+    payload.record = {
+        ...record,
+        id: record.id || Date.now().toString(),
+        details: JSON.stringify(details)
+    };
 
     await callGasApi(payload);
 };
 
 export const updateRecord = async (record: HealthRecord): Promise<void> => {
-    await callGasApi({ action: 'save', record });
+    await saveRecord(record);
 };
 
 export const deleteRecord = async (id: string): Promise<void> => {
-    // Force ID to string to match simple logic
     await callGasApi({ action: 'delete', id: String(id) });
 };
 
 async function callGasApi(payload: any) {
     if (!API_URL) return;
     try {
-        // Use text/plain to avoid preflight OPTIONS request which GAS doesn't handle
-        // GAS doPost(e) can parse contents independent of Content-Type
         await fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
-            // Do NOT set Content-Type to application/json, it triggers preflight
             body: JSON.stringify(payload)
         });
     } catch (e) {
