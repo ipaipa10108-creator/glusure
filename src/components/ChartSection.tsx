@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { HealthRecord, TimeRange } from '../types';
 import {
     Chart as ChartJS,
@@ -11,7 +11,6 @@ import {
     Tooltip,
     Legend,
     TimeScale,
-    InteractionItem,
 } from 'chart.js';
 import { Line, getElementAtEvent } from 'react-chartjs-2';
 import { format, subDays, subMonths, subYears, parseISO, isAfter } from 'date-fns';
