@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { HealthRecord, GlucoseReading, TimeRange } from '../types';
-import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, isAfter, addDays, isSameDay, startOfDay } from 'date-fns';
+import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, isAfter, addDays, isSameDay } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { getGlucoseColor, getGlucoseStatus } from '../utils/helpers';
 import clsx from 'clsx';
