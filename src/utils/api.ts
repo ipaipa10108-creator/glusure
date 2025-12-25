@@ -59,7 +59,6 @@ export const saveRecord = async (record: HealthRecord): Promise<void> => {
     // INDEPENDENT RECORD MODE: No merging. Always create new or update specific ID.
     // If record has ID, it's an update. If not, it's a create.
 
-    let isUpdate = !!record.id;
     let payload: any = { action: 'save' };
 
     // Prepare details JSON for the single record
