@@ -107,11 +107,18 @@ export const login = async (name: string, password?: string): Promise<UserSettin
 
 export const registerUser = async (name: string, password?: string, email?: string): Promise<{ success: boolean; message?: string }> => {
     if (!API_URL) return { success: true };
-    const result = await callGasApi({ action: 'register', name, password, email });
-    return {
-        success: result?.status === 'success',
-        message: result?.message
-    };
+    try {
+        const result = await callGasApi({ action: 'register', name, password, email });
+        if (result && result.status === 'success') {
+            return { success: true };
+        }
+        return {
+            success: false,
+            message: result?.message || '註冊失敗，請稍後再試或檢查 GAS 腳本是否已更新'
+        };
+    } catch (e: any) {
+        return { success: false, message: e?.message || '網路錯誤' };
+    }
 };
 
 export const updateUserSettings = async (settings: UserSettings): Promise<boolean> => {
@@ -129,17 +136,20 @@ export const updateUserSettings = async (settings: UserSettings): Promise<boolea
 async function callGasApi(payload: any) {
     if (!API_URL) return null;
     try {
-        // Using POST for everything. Note: CORS with GAS is tricky, 
-        // redirecting to a GET might happen if not using no-cors, 
-        // but no-cors makes it impossible to read response.
-        // We use a proxy or just standard fetch and hope GAS is set up for it.
         const response = await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify(payload)
         });
-        return await response.json();
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch {
+            console.error('GAS returned non-JSON:', text);
+            return { status: 'error', message: 'GAS 回傳格式錯誤，請確認腳本已更新' };
+        }
     } catch (e) {
         console.error('GAS API Call failed:', e);
         return null;
     }
 }
+
