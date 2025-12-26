@@ -20,12 +20,28 @@ function App() {
 
     // Load Records
     useEffect(() => {
-        loadData();
-    }, []);
+        if (user) {
+            loadData(user.name);
+        }
+    }, [user]);
 
-    const loadData = async () => {
-        const data = await getRecords();
-        setRecords(data);
+    const loadData = async (currentUserName?: string) => {
+        const targetUser = currentUserName || user?.name;
+        if (!targetUser) return;
+
+        let data = await getRecords();
+
+        // Filter by user
+        let userRecords = data.filter(r => r.name === targetUser);
+
+        // Inject Dummy Data for TestUser123 if empty
+        if (targetUser === 'TestUser123' && userRecords.length === 0) {
+            console.log('Generating dummy data for TestUser123...');
+            const dummyData = await import('./utils/dummyGenerator').then(m => m.generateDummyData(targetUser));
+            userRecords = dummyData;
+        }
+
+        setRecords(userRecords);
     };
 
     const handleLogin = (settings: UserSettings) => {
@@ -34,6 +50,7 @@ function App() {
 
     const handleLogout = () => {
         setUser(null);
+        setRecords([]);
         localStorage.removeItem('glusure_user');
     };
 

@@ -171,7 +171,6 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
     };
 
     const ranges: { value: TimeRange; label: string }[] = [
-        { value: 'week', label: '近一週' },
         { value: '2week', label: '近雙週' },
         { value: 'month', label: '近一月' },
         { value: 'quarter', label: '一季' },
@@ -236,7 +235,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
                             return (
                                 <tr key={date} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium align-top">
-                                        {format(parseISO(date), 'yyyy/MM/dd (eee)', { locale: zhTW })}
+                                        {format(parseISO(date), 'MM/dd')} ({format(parseISO(date), 'eee', { locale: zhTW }).replace('週', '')})
                                         <div className="text-xs text-gray-400 font-normal mt-1">{dayRecords.length} 筆紀錄</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm align-top">

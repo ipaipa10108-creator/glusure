@@ -112,6 +112,14 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange, 
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
                 spanGaps: true,
             },
+            {
+                label: '心跳',
+                data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null),
+                borderColor: 'rgb(153, 102, 255)', // Purple
+                backgroundColor: 'rgba(153, 102, 255, 0.5)',
+                spanGaps: true,
+                borderDash: [5, 5], // Dashed line to distinguish
+            },
         ],
     };
 
