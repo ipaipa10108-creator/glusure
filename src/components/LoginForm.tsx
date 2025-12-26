@@ -141,7 +141,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                                     checked={rememberMe}
                                     onChange={(e) => setRememberMe(e.target.checked)}
                                 />
-                                <span className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">記住姓名 (下次自動帶入)</span>
+                                <span className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">記住姓名</span>
                             </label>
                             <label className="flex items-center space-x-2 cursor-pointer group">
                                 <input
@@ -150,10 +150,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
                                     checked={rememberPassword}
                                     onChange={(e) => setRememberPassword(e.target.checked)}
                                 />
-                                <span className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">記住密碼 (下次自動登入)</span>
+                                <span className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">記住密碼</span>
                             </label>
                         </div>
                     )}
+
 
                     <button
                         type="submit"

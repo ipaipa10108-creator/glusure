@@ -18,6 +18,23 @@ function App() {
     const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
+    const [isAppLoading, setIsAppLoading] = useState(true);
+
+    // Initial Login Check
+    useEffect(() => {
+        const savedUser = localStorage.getItem('glusure_user_full');
+        if (savedUser) {
+            try {
+                const parsed = JSON.parse(savedUser);
+                if (parsed.rememberMe && parsed.rememberPassword && parsed.name && parsed.password) {
+                    setUser(parsed);
+                }
+            } catch (e) {
+                console.error("Failed to parse saved user", e);
+            }
+        }
+        setIsAppLoading(false);
+    }, []);
 
     // Load Records
     useEffect(() => {
@@ -50,9 +67,17 @@ function App() {
     };
 
     const handleLogout = () => {
+        const savedUser = localStorage.getItem('glusure_user_full');
+        if (savedUser) {
+            try {
+                const parsed = JSON.parse(savedUser);
+                // Logout clears password and auto-login flag
+                const loggedOutUser = { ...parsed, rememberPassword: false, password: '' };
+                localStorage.setItem('glusure_user_full', JSON.stringify(loggedOutUser));
+            } catch (e) { }
+        }
         setUser(null);
         setRecords([]);
-        localStorage.removeItem('glusure_user');
     };
 
     const handleSubmitRecord = async (record: HealthRecord) => {
@@ -76,6 +101,17 @@ function App() {
             await loadData();
         }
     };
+
+    if (isAppLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-teal-500 text-white">
+                <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="font-medium">載入中...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!user) {
         return <LoginForm onLogin={handleLogin} />;
