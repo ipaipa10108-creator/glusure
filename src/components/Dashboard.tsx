@@ -29,6 +29,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         (thresholds.weightLow > 0 && latestRecord.weight < thresholds.weightLow && latestRecord.weight > 0)
     );
 
+    const [referenceDate, setReferenceDate] = useState<Date | null>(null);
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value) {
+            setReferenceDate(new Date(e.target.value));
+        } else {
+            setReferenceDate(null);
+        }
+    };
+
+    const resetDate = () => setReferenceDate(null);
+
     const ranges: { value: TimeRange; label: string }[] = [
         { value: 'week', label: '一週' },
         { value: '2week', label: '雙週' },
@@ -58,8 +70,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
 
             {/* Controls */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-                <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center space-y-4 xl:space-y-0 gap-4">
+                <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar items-center">
                     {ranges.map((range) => (
                         <button
                             key={range.value}
@@ -72,11 +84,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             {range.label}
                         </button>
                     ))}
+                    <div className="h-4 w-px bg-gray-300 mx-2" />
+                     <div className="flex items-center px-2">
+                        <span className="text-sm text-gray-500 mr-2 whitespace-nowrap">基準日:</span>
+                        <input
+                            type="date"
+                            value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
+                            onChange={handleDateChange}
+                            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-teal-500 focus:ring-teal-500"
+                        />
+                        {referenceDate && (
+                            <button
+                                onClick={resetDate}
+                                className="ml-2 text-xs text-teal-600 hover:text-teal-800 underline whitespace-nowrap"
+                            >
+                                回今天
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <button
                     onClick={onAddRecord}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-full shadow-lg text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transform hover:scale-105 transition-all"
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-full shadow-lg text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transform hover:scale-105 transition-all whitespace-nowrap"
                 >
                     <Plus className="-ml-1 mr-2 h-5 w-5" />
                     新增紀錄
@@ -84,7 +114,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Charts */}
-            <ChartSection records={records} timeRange={timeRange} onDataClick={onEditRecord} />
+            <ChartSection records={records} timeRange={timeRange} onDataClick={onEditRecord} referenceDate={referenceDate || undefined} />
         </div>
     );
 };

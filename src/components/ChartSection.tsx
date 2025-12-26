@@ -32,11 +32,12 @@ interface ChartSectionProps {
     records: HealthRecord[];
     timeRange: TimeRange;
     onDataClick?: (record: HealthRecord) => void;
+    referenceDate?: Date;
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -47,7 +48,17 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const currentTimeRange = fullscreenChart ? fsTimeRange : globalTimeRange;
 
     const filteredRecords = useMemo(() => {
-        const now = new Date();
+        // Use provided referenceDate or default to now if not provided
+        // Construct 'now' to be the end of the day of the reference date if provided,
+        // otherwise just the current moment.
+        let now: Date;
+        if (referenceDate) {
+            now = new Date(referenceDate);
+            now.setHours(23, 59, 59, 999);
+        } else {
+            now = new Date();
+        }
+
         let startDate: Date;
 
         switch (currentTimeRange) {
@@ -61,9 +72,15 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         }
 
         return records
-            .filter(r => isAfter(parseISO(r.timestamp), startDate))
+            .filter(r => {
+                const recordDate = parseISO(r.timestamp);
+                // Filter records that are AFTER the start date AND BEFORE/EQUAL to the reference 'now' date
+                // However, the original logic only checked isAfter(startDate).
+                // If we are looking at the past, we must also exclude future records relative to that past date.
+                return isAfter(recordDate, startDate) && (referenceDate ? recordDate <= now : true);
+            })
             .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    }, [records, currentTimeRange]);
+    }, [records, currentTimeRange, referenceDate]);
 
     const labels = filteredRecords.map(r => format(parseISO(r.timestamp), 'MM/dd HH:mm'));
 
