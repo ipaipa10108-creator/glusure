@@ -241,10 +241,16 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                     </td>
 
                                     {/* BP */}
-                                    <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-700 align-top">
+                                    <td className={clsx("px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-700 align-top",
+                                        latestBPRecord && (latestBPRecord.systolic - latestBPRecord.diastolic > 60 || latestBPRecord.systolic - latestBPRecord.diastolic < 30) && "bg-red-50/50"
+                                    )}>
                                         {latestBPRecord ? (
                                             <>
-                                                <div className="font-semibold text-gray-800">{latestBPRecord.systolic}/{latestBPRecord.diastolic}</div>
+                                                <div className={clsx("font-semibold",
+                                                    (latestBPRecord.systolic > thresholds.systolicHigh || latestBPRecord.diastolic > thresholds.diastolicHigh) ? "text-red-600 font-black" : "text-gray-800"
+                                                )}>
+                                                    {latestBPRecord.systolic}/{latestBPRecord.diastolic}
+                                                </div>
                                                 {hr ? (
                                                     <div className={clsx("text-[10px] sm:text-xs mt-0.5", isHrAbnormal ? "text-red-500 font-bold" : "text-gray-500")}>
                                                         HR: {hr}
@@ -263,7 +269,9 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                     <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm align-top text-right">
                                         {latestWeight ? (
                                             <>
-                                                <span className={clsx("block", weightAbnormal ? "text-red-600 font-bold" : "text-gray-700")}>
+                                                <span className={clsx("block",
+                                                    (weightAbnormal || (thresholds.weightHigh > 0 && latestWeight > thresholds.weightHigh) || (thresholds.weightLow > 0 && latestWeight < thresholds.weightLow)) ? "text-red-600 font-bold" : "text-gray-700"
+                                                )}>
                                                     {latestWeight}
                                                 </span>
                                                 {weightAbnormal && (

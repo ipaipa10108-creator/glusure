@@ -95,6 +95,7 @@ export const login = async (name: string, password?: string): Promise<UserSettin
     if (result && result.status === 'success') {
         return {
             name: result.settings.name,
+            email: result.settings.email,
             rememberMe: true,
             thresholds: result.settings.thresholds
                 ? JSON.parse(result.settings.thresholds)
@@ -102,6 +103,15 @@ export const login = async (name: string, password?: string): Promise<UserSettin
         };
     }
     return null;
+};
+
+export const registerUser = async (name: string, password?: string, email?: string): Promise<{ success: boolean; message?: string }> => {
+    if (!API_URL) return { success: true };
+    const result = await callGasApi({ action: 'register', name, password, email });
+    return {
+        success: result?.status === 'success',
+        message: result?.message
+    };
 };
 
 export const updateUserSettings = async (settings: UserSettings): Promise<boolean> => {

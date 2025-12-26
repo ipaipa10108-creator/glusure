@@ -31,6 +31,7 @@ export interface HealthThresholds {
 export interface UserSettings {
     name: string;
     password?: string;
+    email?: string;
     rememberMe: boolean;
     rememberPassword?: boolean;
     thresholds?: HealthThresholds;

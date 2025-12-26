@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UserSettings, DEFAULT_THRESHOLDS } from '../types';
 import { updateUserSettings } from '../utils/api';
-import { Save, Lock, ChevronLeft } from 'lucide-react';
+import { Save, Lock, ChevronLeft, Mail } from 'lucide-react';
 
 interface SettingsViewProps {
     user: UserSettings;
@@ -11,6 +11,7 @@ interface SettingsViewProps {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBack }) => {
     const [password, setPassword] = useState(user.password || '');
+    const [email, setEmail] = useState(user.email || '');
     const [thresholds, setThresholds] = useState(user.thresholds || DEFAULT_THRESHOLDS);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -20,7 +21,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
         setLoading(true);
         setMessage('');
 
-        const newSettings = { ...user, password, thresholds };
+        const newSettings = { ...user, password, email, thresholds };
         const success = await updateUserSettings(newSettings);
 
         if (success) {
@@ -56,21 +57,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-8">
-                    {/* Password Section */}
+                    {/* Basic Info Section */}
                     <section className="space-y-4">
                         <h4 className="font-medium text-gray-700 flex items-center">
                             <span className="w-1.5 h-6 bg-teal-500 rounded-full mr-2"></span>
-                            登入密碼更改
+                            基本資料與安全
                         </h4>
-                        <div>
-                            <label className="block text-sm text-gray-600 mb-1">新的登入密碼</label>
-                            <input
-                                type="password"
-                                className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="請輸入新密碼"
-                            />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm text-gray-600 mb-1">新的登入密碼</label>
+                                <input
+                                    type="password"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="請輸入新密碼"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-600 mb-1 flex items-center">
+                                    <Mail className="w-3.5 h-3.5 mr-1" /> E-Mail 地址
+                                </label>
+                                <input
+                                    type="email"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="your@email.com"
+                                />
+                            </div>
                         </div>
                     </section>
 
