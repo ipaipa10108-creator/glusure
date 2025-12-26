@@ -57,23 +57,24 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
         });
     }, [records, sortOrder, timeRange]);
 
-    // Helper to find next day weight abnormality
-    const getNextDayWeightDiff = (currentDateStr: string, currentDayRecords: HealthRecord[]) => {
+    // Helper to find weight difference from previous day (alert shows on the NEW day)
+    const getPreviousDayWeightDiff = (currentDateStr: string, currentDayRecords: HealthRecord[]) => {
         const latestWeight = currentDayRecords.filter(r => r.weight > 0).pop()?.weight;
         if (!latestWeight) return { isAbnormal: false, diff: 0 };
 
         const currentDate = parseISO(currentDateStr);
-        const nextDay = addDays(currentDate, 1);
+        const prevDay = addDays(currentDate, -1);
 
-        const nextDayRecords = records.filter(r => isSameDay(parseISO(r.timestamp), nextDay) && r.weight > 0);
-        const nextDayWeight = nextDayRecords.length > 0 ? nextDayRecords[nextDayRecords.length - 1].weight : null;
+        const prevDayRecords = records.filter(r => isSameDay(parseISO(r.timestamp), prevDay) && r.weight > 0);
+        const prevDayWeight = prevDayRecords.length > 0 ? prevDayRecords[prevDayRecords.length - 1].weight : null;
 
-        if (nextDayWeight) {
-            const diff = nextDayWeight - latestWeight;
+        if (prevDayWeight) {
+            const diff = latestWeight - prevDayWeight; // 今日 - 昨日
             if (Math.abs(diff) >= 2) return { isAbnormal: true, diff };
         }
         return { isAbnormal: false, diff: 0 };
     };
+
 
     const renderGlucoseDetailsForDay = (dayRecords: HealthRecord[]) => {
         let allReadings: GlucoseReading[] = [];
@@ -214,7 +215,8 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {groupedRecords.map(({ date, records: dayRecords }) => {
-                            const { isAbnormal: weightAbnormal, diff: weightDiff } = getNextDayWeightDiff(date, dayRecords);
+                            const { isAbnormal: weightAbnormal, diff: weightDiff } = getPreviousDayWeightDiff(date, dayRecords);
+
 
                             const latestWeight = dayRecords.filter(r => r.weight > 0).pop()?.weight;
                             const latestBPRecord = dayRecords.filter(r => r.systolic > 0).pop();

@@ -167,10 +167,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                         </div>
                     </section>
 
-                    <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
-                        <span className={`text-sm font-medium ${message.includes('成功') ? 'text-green-600' : 'text-red-500'}`}>
-                            {message}
-                        </span>
+                    <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setThresholds(DEFAULT_THRESHOLDS)}
+                                className="text-sm text-gray-500 hover:text-teal-600 underline transition-colors"
+                            >
+                                恢復預設值
+                            </button>
+                            <span className={`text-sm font-medium ${message.includes('成功') ? 'text-green-600' : 'text-red-500'}`}>
+                                {message}
+                            </span>
+                        </div>
                         <button
                             type="submit"
                             disabled={loading}

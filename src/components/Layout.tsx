@@ -1,13 +1,14 @@
 import React from 'react';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Settings } from 'lucide-react';
 
 interface LayoutProps {
     children: React.ReactNode;
     userName: string;
     onLogout: () => void;
+    onSettings?: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout, onSettings }) => {
     return (
         <div className="min-h-screen bg-gray-50">
             <nav className="bg-white shadow-sm sticky top-0 z-50">
@@ -16,10 +17,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout }) 
                         <div className="flex items-center">
                             <span className="text-2xl font-bold text-teal-600">Glusure</span>
                         </div>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                            {onSettings && (
+                                <button
+                                    onClick={onSettings}
+                                    className="p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+                                    title="個人設定"
+                                >
+                                    <Settings className="h-5 w-5" />
+                                </button>
+                            )}
                             <div className="flex items-center text-gray-700">
-                                <User className="h-5 w-5 mr-2 text-teal-500" />
-                                <span className="font-medium">{userName}</span>
+                                <User className="h-5 w-5 mr-1 sm:mr-2 text-teal-500" />
+                                <span className="font-medium text-sm sm:text-base">{userName}</span>
                             </div>
                             <button
                                 onClick={onLogout}

@@ -8,7 +8,7 @@ import { RecordList } from './components/RecordList';
 import { RecordForm } from './components/RecordForm';
 import { HealthRecord, UserSettings } from './types';
 import { getRecords, saveRecord, updateRecord, deleteRecord } from './utils/api';
-import { Activity, Edit3, Stethoscope, Settings } from 'lucide-react';
+import { Activity, Edit3, Stethoscope } from 'lucide-react';
 
 type ViewMode = 'dashboard' | 'list' | 'physician' | 'settings';
 
@@ -82,42 +82,35 @@ function App() {
     }
 
     return (
-        <Layout userName={user.name} onLogout={handleLogout}>
+        <Layout userName={user.name} onLogout={handleLogout} onSettings={() => setViewMode('settings')}>
             {/* View Switcher */}
-            <div className="flex justify-center mb-6 space-x-4">
+            <div className="flex justify-center mb-6 space-x-2 sm:space-x-4">
                 <button
                     onClick={() => setViewMode('dashboard')}
-                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'dashboard' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
+                    className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'dashboard' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
                         }`}
                 >
-                    <Activity className="w-4 h-4 mr-2" />
-                    健康儀表板
+                    <Activity className="w-4 h-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">健康</span>儀表板
                 </button>
                 <button
                     onClick={() => setViewMode('list')}
-                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
+                    className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
                         }`}
                 >
-                    <Edit3 className="w-4 h-4 mr-2" />
-                    編輯紀錄
+                    <Edit3 className="w-4 h-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">編輯</span>紀錄
                 </button>
                 <button
                     onClick={() => setViewMode('physician')}
-                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'physician' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
+                    className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'physician' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
                         }`}
                 >
-                    <Stethoscope className="w-4 h-4 mr-2" />
+                    <Stethoscope className="w-4 h-4 mr-1 sm:mr-2" />
                     醫師模式
                 </button>
-                <button
-                    onClick={() => setViewMode('settings')}
-                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'settings' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
-                        }`}
-                >
-                    <Settings className="w-4 h-4 mr-2" />
-                    個人設定
-                </button>
             </div>
+
 
             {/* Main Content */}
             <div className="animate-fade-in">
@@ -138,6 +131,7 @@ function App() {
                         records={records}
                         onEdit={handleEditRecord}
                         onDelete={handleDeleteRecord}
+                        thresholds={user.thresholds}
                     />
                 )}
 
