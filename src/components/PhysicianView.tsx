@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { HealthRecord, GlucoseReading, TimeRange } from '../types';
 import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, isAfter, addDays, isSameDay } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { getGlucoseColor, getGlucoseStatus } from '../utils/helpers';
+import { getGlucoseStatus } from '../utils/helpers';
 import clsx from 'clsx';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Activity } from 'lucide-react';
 
@@ -97,15 +97,17 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
             if (processedIndices.has(i)) continue;
 
             const current = uniqueReadings[i];
-            const status = getGlucoseStatus(current.value, current.type);
-            const colorClass = getGlucoseColor(status);
+            const isAbnormal = getGlucoseStatus(current.value, current.type) !== 'normal';
             const typeLabel = current.type === 'fasting' ? '空腹' : current.type === 'postMeal' ? '飯後' : '臨時';
             const timeStr = format(parseISO(current.timestamp), 'HH:mm');
+            // Fasting: Light Green, PostMeal: Light Yellow, Random: Gray (default)
+            const bgColorClass = current.type === 'fasting' ? "bg-green-50" : current.type === 'postMeal' ? "bg-yellow-50" : "bg-gray-50";
+            const textColorClass = isAbnormal ? "text-red-600" : (current.type === 'fasting' ? "text-green-700" : current.type === 'postMeal' ? "text-yellow-700" : "text-gray-700");
 
             elements.push(
-                <span key={`item-${i}`} className={clsx("px-1.5 py-0.5 rounded text-[10px] sm:text-xs w-fit mr-1 mb-1 flex items-center gap-1", colorClass)}>
+                <span key={`item-${i}`} className={clsx("px-1.5 py-0.5 rounded text-[10px] sm:text-xs w-fit mr-1 mb-1 flex items-center gap-1", bgColorClass, textColorClass)}>
                     <span className="opacity-75 text-[9px] sm:text-[10px]">{timeStr}</span>
-                    <span className="font-bold whitespace-nowrap">{typeLabel}:{current.value}</span>
+                    <span className={clsx("font-bold whitespace-nowrap", isAbnormal && "font-black")}>{typeLabel}:{current.value}</span>
                 </span>
             );
 
@@ -132,14 +134,15 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
                         </span>
                     );
 
-                    const pairStatus = getGlucoseStatus(pair.value, pair.type);
-                    const pairColor = getGlucoseColor(pairStatus);
+                    const pairIsAbnormal = getGlucoseStatus(pair.value, pair.type) !== 'normal';
+                    const pairBgColor = "bg-yellow-50";
+                    const pairTextColor = pairIsAbnormal ? "text-red-600" : "text-yellow-700";
                     const pairTimeStr = format(parseISO(pair.timestamp), 'HH:mm');
 
                     elements.push(
-                        <span key={`item-${pairIndex}`} className={clsx("px-1.5 py-0.5 rounded text-[10px] sm:text-xs w-fit mr-1 mb-1 flex items-center gap-1", pairColor)}>
+                        <span key={`item-${pairIndex}`} className={clsx("px-1.5 py-0.5 rounded text-[10px] sm:text-xs w-fit mr-1 mb-1 flex items-center gap-1", pairBgColor, pairTextColor)}>
                             <span className="opacity-75 text-[9px] sm:text-[10px]">{pairTimeStr}</span>
-                            <span className="font-bold whitespace-nowrap">飯後:{pair.value}</span>
+                            <span className={clsx("font-bold whitespace-nowrap", pairIsAbnormal && "font-black")}>飯後:{pair.value}</span>
                         </span>
                     );
 
