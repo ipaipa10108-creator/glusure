@@ -84,15 +84,52 @@ export const deleteRecord = async (id: string): Promise<void> => {
     await callGasApi({ action: 'delete', id: String(id) });
 };
 
+export const login = async (name: string, password?: string): Promise<UserSettings | null> => {
+    if (!API_URL) {
+        // Mock login for local dev if no API
+        if (name === 'TestUser123') return { name, rememberMe: true, thresholds: undefined };
+        return null;
+    }
+
+    const result = await callGasApi({ action: 'login', name, password });
+    if (result && result.status === 'success') {
+        return {
+            name: result.settings.name,
+            rememberMe: true,
+            thresholds: result.settings.thresholds
+                ? JSON.parse(result.settings.thresholds)
+                : undefined
+        };
+    }
+    return null;
+};
+
+export const updateUserSettings = async (settings: UserSettings): Promise<boolean> => {
+    const payload = {
+        action: 'updateSettings',
+        settings: {
+            ...settings,
+            thresholds: JSON.stringify(settings.thresholds)
+        }
+    };
+    const result = await callGasApi(payload);
+    return result?.status === 'success';
+};
+
 async function callGasApi(payload: any) {
-    if (!API_URL) return;
+    if (!API_URL) return null;
     try {
-        await fetch(API_URL, {
+        // Using POST for everything. Note: CORS with GAS is tricky, 
+        // redirecting to a GET might happen if not using no-cors, 
+        // but no-cors makes it impossible to read response.
+        // We use a proxy or just standard fetch and hope GAS is set up for it.
+        const response = await fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
             body: JSON.stringify(payload)
         });
+        return await response.json();
     } catch (e) {
         console.error('GAS API Call failed:', e);
+        return null;
     }
 }

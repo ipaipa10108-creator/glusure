@@ -1,16 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { HealthRecord, GlucoseReading, TimeRange } from '../types';
+import { HealthRecord, GlucoseReading, TimeRange, UserSettings } from '../types';
 import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, isAfter, addDays, isSameDay } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { getGlucoseStatus } from '../utils/helpers';
 import clsx from 'clsx';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Activity } from 'lucide-react';
 
+import { DEFAULT_THRESHOLDS } from '../types';
+
 interface PhysicianViewProps {
     records: HealthRecord[];
+    userSettings: UserSettings;
 }
 
-export const PhysicianView: React.FC<PhysicianViewProps> = ({ records }) => {
+export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSettings }) => {
+    const thresholds = userSettings.thresholds || DEFAULT_THRESHOLDS;
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
 

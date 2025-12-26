@@ -3,13 +3,14 @@ import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { PhysicianView } from './components/PhysicianView';
+import { SettingsView } from './components/SettingsView';
 import { RecordList } from './components/RecordList';
 import { RecordForm } from './components/RecordForm';
-import { HealthRecord, UserSettings } from './types';
+import { HealthRecord, UserSettings, DEFAULT_THRESHOLDS } from './types';
 import { getRecords, saveRecord, updateRecord, deleteRecord } from './utils/api';
-import { Activity, Edit3, Stethoscope } from 'lucide-react';
+import { Activity, Edit3, Stethoscope, Settings } from 'lucide-react';
 
-type ViewMode = 'dashboard' | 'list' | 'physician';
+type ViewMode = 'dashboard' | 'list' | 'physician' | 'settings';
 
 function App() {
     const [user, setUser] = useState<UserSettings | null>(null);
@@ -108,6 +109,14 @@ function App() {
                     <Stethoscope className="w-4 h-4 mr-2" />
                     醫師模式
                 </button>
+                <button
+                    onClick={() => setViewMode('settings')}
+                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'settings' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                >
+                    <Settings className="w-4 h-4 mr-2" />
+                    個人設定
+                </button>
             </div>
 
             {/* Main Content */}
@@ -115,6 +124,7 @@ function App() {
                 {viewMode === 'dashboard' && (
                     <Dashboard
                         records={records}
+                        userSettings={user}
                         onAddRecord={() => {
                             setEditingRecord(null);
                             setIsFormOpen(true);
@@ -132,7 +142,15 @@ function App() {
                 )}
 
                 {viewMode === 'physician' && (
-                    <PhysicianView records={records} />
+                    <PhysicianView records={records} userSettings={user} />
+                )}
+
+                {viewMode === 'settings' && (
+                    <SettingsView
+                        user={user}
+                        onBack={() => setViewMode('dashboard')}
+                        onUpdate={(newSettings) => setUser(newSettings)}
+                    />
                 )}
             </div>
 

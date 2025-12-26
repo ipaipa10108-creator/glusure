@@ -26,104 +26,120 @@ Glusure 是一個專注於血糖與健康數據追蹤的應用程式，旨在幫
 
 ### 1. 建立 Google Sheets 資料庫
 
-本專案使用 Google Sheets 與 Google Apps Script (GAS) 作為後端 API。請依照以下格式設定您的 Google Sheet：
+本專案使用 Google Sheets 與 Google Apps Script (GAS) 作為後端 API。請在您的試算表中建立兩個工作表：
 
-**工作表名稱**：`HealthRecords`
+#### **工作表 1：`HealthRecords`**
 
-| 欄位名稱 (Header) | 說明 | 對應 App 欄位 | 備註 |
-| :--- | :--- | :--- | :--- |
-| `id` | 唯一識別碼 | `id` | 由 App 自動生成 |
-| `timestamp` | ISO 8601 時間戳記 | `timestamp` | 紀錄日期 |
-| `name` | 使用者名稱 | `name` | |
-| `weight` | 體重 (kg) | `weight` | |
-| `systolic` | 收縮壓 (mmHg) | `systolic` | |
-| `diastolic` | 舒張壓 (mmHg) | `diastolic` | |
-| `heart_rate` | 心率 (bpm) | `heartRate` | |
-| `glucose_fasting` | 空腹血糖 (mg/dL) | `glucoseFasting` | 最新一筆數值 |
-| `glucose_post_meal` | 飯後血糖 (mg/dL) | `glucosePostMeal` | 最新一筆數值 |
-| `glucose_random` | 隨機血糖 (mg/dL) | `glucoseRandom` | 最新一筆數值 |
-| `note` | 備註 | `note` | |
-| `details_json` | 詳細血糖紀錄 (JSON) | `details` | 儲存單日所有測量細節 |
-| `updated_at` | 最後更新時間 | - | 建議在 GAS 中自動寫入 |
+| 欄位名稱 (Header) | 說明 |
+| :--- | :--- |
+| `id` | 唯一識別碼 |
+| `timestamp` | ISO 8601 時間戳記 |
+| `name` | 使用者名稱 |
+| `weight` | 體重 (kg) |
+| `systolic` | 收縮壓 (mmHg) |
+| `diastolic` | 舒張壓 (mmHg) |
+| `heart_rate` | 心率 (bpm) |
+| `glucose_fasting` | 空腹血糖 |
+| `glucose_post_meal` | 飯後血糖 |
+| `glucose_random` | 隨機血糖 |
+| `note` | 備註 |
+| `details_json` | 詳細血糖紀錄 (JSON) |
+| `updated_at` | 最後更新時間 |
+
+#### **工作表 2：`UserSettings`**
+
+| 欄位名稱 (Header) | 說明 |
+| :--- | :--- |
+| `name` | 使用者名稱 (唯一識別) |
+| `password` | 登入密碼 (預設建議 1234) |
+| `thresholds` | JSON 格式的警示閾值設定 |
+| `updated_at` | 最後更新時間 |
 
 ### 2. 設定 Google Apps Script (GAS)
 
-1. 在您的 Google Sheet 中點選 `擴充功能` > `Apps Script`。
-2. 將以下程式碼複製貼上至編輯器中（取代預設程式碼）：
+1. 在試算表中點選 `擴充功能` > `Apps Script`。
+2. 複製以下程式碼（處理登入、紀錄儲存與設定更新）：
 
 ```javascript
-const SHEET_NAME = 'HealthRecords';
-
-function doGet(e) {
-  return handleResponse(() => {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
-    const rows = data.slice(1);
-    
-    // 將陣列轉換為物件陣列
-    const records = rows.map(row => {
-      const record = {};
-      headers.forEach((header, index) => {
-        // 還原 details_json 為 details 字串 (App 端會再 parse)
-        if (header === 'details_json') {
-           record['details'] = row[index];
-        } else {
-           record[header] = row[index];
-        }
-      });
-      // 轉換欄位名稱以符合 frontend type (若 Sheet header 與 Type 不同需在此轉換，目前假設一致或前端處理)
-      // 這裡簡單回傳 Sheet 的欄位值
-      return record;
-    });
-
-    return records;
-  });
-}
+const RECORDS_SHEET = 'HealthRecords';
+const SETTINGS_SHEET = 'UserSettings';
 
 function doPost(e) {
   return handleResponse(() => {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
     const params = JSON.parse(e.postData.contents);
-    const action = params.action; // 'save' or 'delete'
-    const record = params.record; // record data
+    const action = params.action;
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // --- 使用者登入 (Login) ---
+    if (action === 'login') {
+      const sheet = ss.getSheetByName(SETTINGS_SHEET);
+      const data = sheet.getDataRange().getValues();
+      const name = params.name;
+      const password = String(params.password || "1234");
+      
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === name) {
+          if (String(data[i][1]) === password) {
+            return { status: 'success', settings: { name: name, thresholds: data[i][2] } };
+          } else {
+            throw new Error('密碼錯誤');
+          }
+        }
+      }
+      // 若找不到使用者，自動建立預設帳號
+      sheet.appendRow([name, "1234", "", new Date()]);
+      return { status: 'success', settings: { name: name, thresholds: "" } };
+    }
 
+    // --- 更新個人設定 (Update Settings) ---
+    if (action === 'updateSettings') {
+      const sheet = ss.getSheetByName(SETTINGS_SHEET);
+      const data = sheet.getDataRange().getValues();
+      const settings = params.settings;
+      
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === settings.name) {
+          sheet.getRange(i + 1, 2).setValue(settings.password);
+          sheet.getRange(i + 1, 3).setValue(settings.thresholds);
+          sheet.getRange(i + 1, 4).setValue(new Date());
+          return { status: 'success' };
+        }
+      }
+      return { status: 'error', message: 'User not found' };
+    }
+
+    // --- 刪除紀錄 (Delete) ---
     if (action === 'delete') {
+      const sheet = ss.getSheetByName(RECORDS_SHEET);
       const idToDelete = params.id;
       const data = sheet.getDataRange().getValues();
-      // 假設 ID 在第一欄 (index 0)
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] == idToDelete) {
           sheet.deleteRow(i + 1);
-          return { status: 'success', message: 'Deleted' };
+          return { status: 'success' };
         }
       }
       return { status: 'error', message: 'Record not found' };
     }
-    
-    // Save or Update
+
+    // --- 儲存或更新紀錄 (Save Record) ---
+    const sheet = ss.getSheetByName(RECORDS_SHEET);
+    const record = params.record;
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     const data = sheet.getDataRange().getValues();
     let rowIndex = -1;
     
-    // Check if record exists (Update)
     if (record.id) {
       for (let i = 1; i < data.length; i++) {
-        if (data[i][0] == record.id) {
-          rowIndex = i + 1;
-          break;
-        }
+        if (data[i][0] == record.id) { rowIndex = i + 1; break; }
       }
     }
 
-    // Prepare row data
     const rowData = headers.map(header => {
-      if (header === 'updated_at') return new Date();
-      if (header === 'details_json') return record.details || ''; // App 傳來的是 details 字串
-      // 對應前端 camelCase 到 Sheet snake_case (如果欄位名完全一致可省略 mapping)
-      // 這裡做簡單的 mapping 示範，或確保 Sheet header 與前端一致
-      // 假設 Sheet header 使用 snake_case，前端傳來的是 camelCase
       switch(header) {
+        case 'id': return record.id || Utilities.getUuid();
+        case 'updated_at': return new Date();
+        case 'details_json': return record.details || '';
         case 'heart_rate': return record.heartRate;
         case 'glucose_fasting': return record.glucoseFasting;
         case 'glucose_post_meal': return record.glucosePostMeal;
@@ -133,26 +149,34 @@ function doPost(e) {
     });
 
     if (rowIndex > 0) {
-      // Update existing row
-       sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+      sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
     } else {
-      // Append new row
       sheet.appendRow(rowData);
     }
-    
-    return { status: 'success', message: 'Saved' };
+    return { status: 'success' };
   });
 }
 
-// 處理 CORS 與回應格式
+function doGet(e) {
+  return handleResponse(() => {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RECORDS_SHEET);
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const rows = data.slice(1);
+    return rows.map(row => {
+      const record = {};
+      headers.forEach((h, i) => record[h === 'details_json' ? 'details' : h] = row[i]);
+      return record;
+    });
+  });
+}
+
 function handleResponse(callback) {
   try {
     const result = callback();
-    return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: e.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: e.toString() })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 ```

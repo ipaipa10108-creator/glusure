@@ -1,8 +1,12 @@
-import { HealthRecord } from '../types';
+import { HealthRecord, HealthThresholds, DEFAULT_THRESHOLDS } from '../types';
 import { differenceInHours, parseISO } from 'date-fns';
 
-export const isWeightAbnormal = (current: HealthRecord, history: HealthRecord[]): boolean => {
-    // Find records within 24 hours
+export const isWeightAbnormal = (current: HealthRecord, history: HealthRecord[], thresholds: HealthThresholds = DEFAULT_THRESHOLDS): boolean => {
+    // Check target thresholds first
+    if (thresholds.weightHigh > 0 && current.weight > thresholds.weightHigh) return true;
+    if (thresholds.weightLow > 0 && current.weight < thresholds.weightLow && current.weight > 0) return true;
+
+    // Daily fluctuate check
     const currentTime = parseISO(current.timestamp);
     const recentRecord = history.find(r => {
         const rTime = parseISO(r.timestamp);
@@ -17,15 +21,15 @@ export const isWeightAbnormal = (current: HealthRecord, history: HealthRecord[])
     return false;
 };
 
-export const getGlucoseStatus = (value: number, type: 'fasting' | 'postMeal' | 'random'): 'normal' | 'high' | 'very-high' => {
+export const getGlucoseStatus = (value: number, type: 'fasting' | 'postMeal' | 'random', thresholds: HealthThresholds = DEFAULT_THRESHOLDS): 'normal' | 'high' | 'very-high' => {
     if (type === 'fasting') {
-        if (value > 126) return 'very-high'; // Diabetes range
-        if (value > 100) return 'high'; // Pre-diabetes
+        if (value > thresholds.fastingHigh * 1.2) return 'very-high';
+        if (value > thresholds.fastingHigh) return 'high';
         return 'normal';
     }
     if (type === 'postMeal' || type === 'random') {
-        if (value > 200) return 'very-high';
-        if (value > 140) return 'high';
+        if (value > thresholds.postMealHigh * 1.4) return 'very-high';
+        if (value > thresholds.postMealHigh) return 'high';
         return 'normal';
     }
     return 'normal';

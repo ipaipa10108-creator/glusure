@@ -1,21 +1,33 @@
 import React, { useState } from 'react';
-import { HealthRecord, TimeRange } from '../types';
+import { HealthRecord, TimeRange, UserSettings } from '../types';
 import { ChartSection } from './ChartSection';
 import { isWeightAbnormal } from '../utils/helpers';
+import { DEFAULT_THRESHOLDS } from '../types';
 import { AlertCircle, Plus } from 'lucide-react';
 
 interface DashboardProps {
     records: HealthRecord[];
+    userSettings: UserSettings | null;
     onAddRecord: () => void;
     onEditRecord: (record: HealthRecord) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ records, onAddRecord, onEditRecord }) => {
-    const [timeRange, setTimeRange] = useState<TimeRange>('week');
+export const Dashboard: React.FC<DashboardProps> = ({
+    records,
+    userSettings,
+    onAddRecord,
+    onEditRecord
+}) => {
+    const [timeRange, setTimeRange] = useState<TimeRange>('month');
 
     // Check for alerts
+    const thresholds = userSettings?.thresholds || DEFAULT_THRESHOLDS;
     const latestRecord = records[records.length - 1];
-    const hasWeightAlert = latestRecord && isWeightAbnormal(latestRecord, records);
+    const hasWeightAlert = latestRecord && (
+        isWeightAbnormal(latestRecord, records, thresholds) ||
+        (thresholds.weightHigh > 0 && latestRecord.weight > thresholds.weightHigh) ||
+        (thresholds.weightLow > 0 && latestRecord.weight < thresholds.weightLow && latestRecord.weight > 0)
+    );
 
     const ranges: { value: TimeRange; label: string }[] = [
         { value: 'week', label: '一週' },
@@ -38,7 +50,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onAddRecord, onEd
                         </div>
                         <div className="ml-3">
                             <p className="text-sm text-red-700">
-                                <span className="font-bold">注意：</span> 最近 24 小時內體重變化超過 2 公斤，請多加留意身體狀況。
+                                <span className="font-bold">注意：</span> 最近 24 小時內體重變化超過 2 公斤，或超出設定範圍，請多加留意身體狀況。
                             </p>
                         </div>
                     </div>
