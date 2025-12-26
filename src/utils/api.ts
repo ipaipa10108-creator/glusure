@@ -1,4 +1,4 @@
-import { HealthRecord, GlucoseReading } from '../types';
+import { HealthRecord, GlucoseReading, UserSettings } from '../types';
 
 
 const API_URL = import.meta.env.VITE_API_URL;

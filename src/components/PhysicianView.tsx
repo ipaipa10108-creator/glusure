@@ -101,7 +101,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
             if (processedIndices.has(i)) continue;
 
             const current = uniqueReadings[i];
-            const isAbnormal = getGlucoseStatus(current.value, current.type) !== 'normal';
+            const isAbnormal = getGlucoseStatus(current.value, current.type, thresholds) !== 'normal';
             const typeLabel = current.type === 'fasting' ? '空腹' : current.type === 'postMeal' ? '飯後' : '臨時';
             const timeStr = format(parseISO(current.timestamp), 'HH:mm');
             // Fasting: Light Green, PostMeal: Light Yellow, Random: Gray (default)
@@ -138,7 +138,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                         </span>
                     );
 
-                    const pairIsAbnormal = getGlucoseStatus(pair.value, pair.type) !== 'normal';
+                    const pairIsAbnormal = getGlucoseStatus(pair.value, pair.type, thresholds) !== 'normal';
                     const pairBgColor = "bg-yellow-50";
                     const pairTextColor = pairIsAbnormal ? "text-red-600" : "text-yellow-700";
                     const pairTimeStr = format(parseISO(pair.timestamp), 'HH:mm');

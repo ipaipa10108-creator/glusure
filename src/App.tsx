@@ -6,7 +6,7 @@ import { PhysicianView } from './components/PhysicianView';
 import { SettingsView } from './components/SettingsView';
 import { RecordList } from './components/RecordList';
 import { RecordForm } from './components/RecordForm';
-import { HealthRecord, UserSettings, DEFAULT_THRESHOLDS } from './types';
+import { HealthRecord, UserSettings } from './types';
 import { getRecords, saveRecord, updateRecord, deleteRecord } from './utils/api';
 import { Activity, Edit3, Stethoscope, Settings } from 'lucide-react';
 
