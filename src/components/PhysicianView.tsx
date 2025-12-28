@@ -170,33 +170,41 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
 
 
     // Note Detail Modal State
-    const [selectedNote, setSelectedNote] = useState<{ date: string; content: any } | null>(null);
+    const [selectedNote, setSelectedNote] = useState<{ date: string; records: HealthRecord[] } | null>(null);
 
-    const renderNoteIcons = (record: HealthRecord) => {
-        if (!record.noteContent) return null;
-        let note: any = {};
-        try {
-            note = JSON.parse(record.noteContent);
-        } catch { return null; }
+    const renderNoteIcons = (dayRecords: HealthRecord[]) => {
+        const noteRecords = dayRecords
+            .filter(r => r.noteContent)
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-        const diets = note.diets || [];
-        const exercises = note.exercises || [];
-        const hasOther = !!note.otherNote;
+        if (noteRecords.length === 0) return null;
 
-        if (diets.length === 0 && exercises.length === 0 && !hasOther) return null;
+        // Collect all unique icons to show on the button
+        const allDietIcons: string[] = [];
+        const allExerciseIcons: string[] = [];
+        let hasOther = false;
 
         const dietIcons: Record<string, string> = { bigMeal: '🥩', normal: '🍱', dieting: '🥗', fasting: '💧' };
         const exerciseIcons: Record<string, string> = { walking: '🚶', cycling: '🚴', resistance: '🏋️', other: '📝' };
 
+        noteRecords.forEach(r => {
+            try {
+                const n = JSON.parse(r.noteContent || '{}');
+                (n.diets || []).forEach((d: string) => { if (!allDietIcons.includes(dietIcons[d])) allDietIcons.push(dietIcons[d]); });
+                (n.exercises || []).forEach((e: any) => { if (!allExerciseIcons.includes(exerciseIcons[e.type])) allExerciseIcons.push(exerciseIcons[e.type]); });
+                if (n.otherNote) hasOther = true;
+            } catch (e) { }
+        });
+
         return (
             <button
-                onClick={() => setSelectedNote({ date: record.timestamp, content: note })}
+                onClick={() => setSelectedNote({ date: dayRecords[0].timestamp, records: noteRecords })}
                 className="ml-1 inline-flex items-center gap-0.5 p-0.5 hover:bg-gray-100 rounded transition-colors text-xs"
-                title="查看備註詳情"
+                title="查看當日所有備註"
             >
-                {diets.map((d: string) => <span key={d}>{dietIcons[d] || ''}</span>)}
-                {exercises.map((e: any, idx: number) => <span key={idx}>{exerciseIcons[e.type] || '📝'}</span>)}
-                {hasOther && !exercises.some((e: any) => e.type === 'other') && <span>📝</span>}
+                {allDietIcons.map(icon => <span key={icon}>{icon}</span>)}
+                {allExerciseIcons.map(icon => <span key={icon}>{icon}</span>)}
+                {hasOther && !allExerciseIcons.some(i => i === '📝') && <span>📝</span>}
             </button>
         );
     };
@@ -252,25 +260,24 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
 
 
                             const latestWeight = dayRecords.filter(r => r.weight > 0).pop()?.weight;
-                            const latestBPRecord = dayRecords.filter(r => r.systolic > 0).pop();
+                            // const latestBPRecord = dayRecords.filter(r => r.systolic > 0).pop();
+                            // Used inside renderBlock now
 
                             // Find any record with weather for the day (prefer latest)
-                            const weatherRecord = [...dayRecords].reverse().find(r => r.weather);
-                            const weatherIcon = weatherRecord?.weather === 'hot' ? '☀️'
-                                : weatherRecord?.weather === 'moderate' ? '🌤️'
-                                    : weatherRecord?.weather === 'cold' ? '❄️' : null;
+                            // const weatherRecord = [...dayRecords].reverse().find(r => r.weather);
+                            // Used inside renderBlock now
 
-                            // Find any record with note content
-                            const noteRecord = [...dayRecords].reverse().find(r => r.noteContent);
+                            // Find if any record has note content (to enable the button)
+                            const hasNote = dayRecords.some(r => r.noteContent);
 
                             // Date Logic
                             const dateObj = parseISO(date);
                             const dayOfWeek = dateObj.getDay(); // 0 is Sunday, 6 is Saturday
                             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-                            // HR Logic
-                            const hr = latestBPRecord?.heartRate;
-                            const isHrAbnormal = hr && (hr > 90 || hr < 60);
+                            // HR Logic - now handled inside renderBlock
+                            // const hr = latestBPRecord?.heartRate;
+                            // const isHrAbnormal = hr && (hr > 90 || hr < 60);
 
                             return (
                                 <tr key={date} className="hover:bg-gray-50 transition-colors">
@@ -283,31 +290,68 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                             <span className={clsx("text-[10px]", isWeekend ? "text-orange-600/70" : "text-gray-400")}>
                                                 {format(dateObj, 'eee', { locale: zhTW }).replace('週', '')}
                                             </span>
-                                            {noteRecord && renderNoteIcons(noteRecord)}
+                                            {hasNote && renderNoteIcons(dayRecords)}
                                         </div>
                                     </td>
 
                                     {/* BP */}
-                                    <td className={clsx("px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-700 align-top",
-                                        latestBPRecord && (latestBPRecord.systolic - latestBPRecord.diastolic > 60 || latestBPRecord.systolic - latestBPRecord.diastolic < 30) && "bg-red-50/50"
-                                    )}>
-                                        {latestBPRecord ? (
-                                            <>
-                                                <div className="flex items-center gap-1">
-                                                    <div className={clsx("font-semibold",
-                                                        (latestBPRecord.systolic > thresholds.systolicHigh || latestBPRecord.diastolic > thresholds.diastolicHigh) ? "text-red-600 font-black" : "text-gray-800"
+                                    {/* BP */}
+                                    <td className="px-2 sm:px-6 py-2 sm:py-2 whitespace-nowrap text-xs sm:text-sm text-gray-700 align-top">
+                                        {(() => {
+                                            const amRecords = dayRecords.filter(r => parseInt(format(parseISO(r.timestamp), 'H')) < 16);
+                                            const pmRecords = dayRecords.filter(r => parseInt(format(parseISO(r.timestamp), 'H')) >= 16);
+
+                                            const renderBlock = (recs: HealthRecord[], label: string, bgClass: string) => {
+                                                const latest = recs.filter(r => r.systolic > 0).pop();
+                                                const weatherRec = [...recs].reverse().find(r => r.weather);
+                                                const weatherIcon = weatherRec?.weather === 'hot' ? '☀️'
+                                                    : weatherRec?.weather === 'moderate' ? '🌤️'
+                                                        : weatherRec?.weather === 'cold' ? '❄️' : null;
+
+                                                if (!latest && !weatherIcon) return <div className={clsx("h-8 rounded", bgClass, "opacity-20")}></div>;
+
+                                                const isHigh = latest && (latest.systolic > thresholds.systolicHigh || latest.diastolic > thresholds.diastolicHigh);
+                                                const isWide = latest && (latest.systolic - latest.diastolic > 60);
+                                                const isNarrow = latest && (latest.systolic - latest.diastolic < 30);
+                                                const hr = latest?.heartRate;
+                                                const isHrAbnormal = hr && (hr > 90 || hr < 60);
+
+                                                return (
+                                                    <div className={clsx(
+                                                        "flex items-center justify-between p-1.5 rounded mb-1 last:mb-0",
+                                                        bgClass,
+                                                        (isWide || isNarrow) && "ring-1 ring-red-200"
                                                     )}>
-                                                        {latestBPRecord.systolic}/{latestBPRecord.diastolic}
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] text-gray-400 w-6">{label}</span>
+                                                            {latest ? (
+                                                                <span className={clsx(
+                                                                    "font-semibold",
+                                                                    isHigh ? "text-red-600 font-black" : "text-gray-800"
+                                                                )}>
+                                                                    {latest.systolic}/{latest.diastolic}
+                                                                </span>
+                                                            ) : <span className="text-gray-300">-</span>}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            {hr ? (
+                                                                <span className={clsx("text-[10px]", isHrAbnormal ? "text-red-500 font-bold" : "text-gray-500")}>
+                                                                    HR:{hr}
+                                                                </span>
+                                                            ) : null}
+                                                            {weatherIcon && <span className="text-sm" title={`天氣: ${weatherRec?.weather}`}>{weatherIcon}</span>}
+                                                        </div>
                                                     </div>
-                                                    {weatherIcon && <span className="text-sm" title={`天氣: ${weatherRecord?.weather}`}>{weatherIcon}</span>}
+                                                );
+                                            };
+
+                                            return (
+                                                <div className="flex flex-col gap-0.5">
+                                                    {renderBlock(amRecords, '白天', 'bg-orange-50/60')}
+                                                    {renderBlock(pmRecords, '傍晚', 'bg-indigo-50/60')}
                                                 </div>
-                                                {hr ? (
-                                                    <div className={clsx("text-[10px] sm:text-xs mt-0.5", isHrAbnormal ? "text-red-500 font-bold" : "text-gray-500")}>
-                                                        HR: {hr}
-                                                    </div>
-                                                ) : null}
-                                            </>
-                                        ) : <span className="text-gray-300">-</span>}
+                                            );
+                                        })()}
                                     </td>
 
                                     {/* Glucose */}
@@ -343,58 +387,67 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
             {selectedNote && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedNote(null)}></div>
-                    <div className="relative bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-                        <div className="px-4 py-3 bg-teal-50 border-b border-teal-100 flex justify-between items-center">
+                    <div className="relative bg-white rounded-xl shadow-xl max-w-sm w-full max-h-[80vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+                        <div className="px-4 py-3 bg-teal-50 border-b border-teal-100 flex justify-between items-center sticky top-0 bg-teal-50 z-10">
                             <h4 className="font-medium text-teal-800">
-                                {format(parseISO(selectedNote.date), 'yyyy/MM/dd HH:mm')} 備註
+                                {format(parseISO(selectedNote.date), 'yyyy/MM/dd')} 備註彙整
                             </h4>
                             <button onClick={() => setSelectedNote(null)} className="text-teal-600 hover:text-teal-800">
-                                <Activity className="w-4 h-4 rotate-45" /> {/* Close icon using Activity rotated or just X if imported */}
+                                <Activity className="w-4 h-4 rotate-45" />
                             </button>
                         </div>
-                        <div className="p-4 space-y-4">
-                            {/* Diet */}
-                            {selectedNote.content.diets && selectedNote.content.diets.length > 0 && (
-                                <div>
-                                    <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">飲食內容</h5>
-                                    <div className="flex flex-wrap gap-1">
-                                        {selectedNote.content.diets.map((d: string) => (
-                                            <span key={d} className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">
-                                                {d === 'bigMeal' ? '🥩 大餐' : d === 'normal' ? '🍱 一般' : d === 'dieting' ? '🥗 節食' : '💧 斷食'}
-                                            </span>
-                                        ))}
+                        <div className="p-4 space-y-6">
+                            {selectedNote.records.map((record, rIdx) => {
+                                let content: any = {};
+                                try { content = JSON.parse(record.noteContent || '{}'); } catch (e) { return null; }
+
+                                return (
+                                    <div key={record.id || rIdx} className="relative pb-2 last:pb-0 border-l-2 border-gray-100 pl-4 ml-1">
+                                        <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-teal-200 ring-2 ring-white"></div>
+                                        <div className="text-xs font-bold text-gray-500 mb-2">
+                                            {format(parseISO(record.timestamp), 'aa h:mm', { locale: zhTW })}
+                                        </div>
+
+                                        {/* Diet */}
+                                        {content.diets && content.diets.length > 0 && (
+                                            <div className="mb-2">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {content.diets.map((d: string) => (
+                                                        <span key={d} className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">
+                                                            {d === 'bigMeal' ? '🥩 大餐' : d === 'normal' ? '🍱 一般' : d === 'dieting' ? '🥗 節食' : '💧 斷食'}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Exercise */}
+                                        {content.exercises && content.exercises.length > 0 && (
+                                            <div className="mb-2">
+                                                <ul className="space-y-1">
+                                                    {content.exercises.map((e: any, idx: number) => (
+                                                        <li key={idx} className="text-sm text-gray-700 flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0"></span>
+                                                            {e.type === 'walking' && '🚶 健走'}
+                                                            {e.type === 'cycling' && '🚴 腳踏車'}
+                                                            {e.type === 'resistance' && '🏋️ 阻力訓練'}
+                                                            {e.type === 'other' && `📝 ${e.customName || '其他'}`}
+                                                            {e.durationMinutes && <span className="text-gray-400 text-xs">({e.durationMinutes} min)</span>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {/* Other */}
+                                        {content.otherNote && (
+                                            <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                                                {content.otherNote}
+                                            </p>
+                                        )}
                                     </div>
-                                </div>
-                            )}
-
-                            {/* Exercise */}
-                            {selectedNote.content.exercises && selectedNote.content.exercises.length > 0 && (
-                                <div>
-                                    <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">運動紀錄</h5>
-                                    <ul className="space-y-1">
-                                        {selectedNote.content.exercises.map((e: any, idx: number) => (
-                                            <li key={idx} className="text-sm text-gray-700 flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0"></span>
-                                                {e.type === 'walking' && '🚶 健走'}
-                                                {e.type === 'cycling' && '🚴 腳踏車'}
-                                                {e.type === 'resistance' && '🏋️ 阻力訓練'}
-                                                {e.type === 'other' && `📝 ${e.customName || '其他'}`}
-                                                {e.durationMinutes && <span className="text-gray-400 text-xs">({e.durationMinutes} min)</span>}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {/* Other */}
-                            {selectedNote.content.otherNote && (
-                                <div>
-                                    <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">其他備註</h5>
-                                    <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                                        {selectedNote.content.otherNote}
-                                    </p>
-                                </div>
-                            )}
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

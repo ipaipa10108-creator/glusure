@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HealthRecord, GlucoseReading, NoteContent, WeatherType, DietType, ExerciseType, ExerciseRecord } from '../types';
 import { X, Save, Trash2, List } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { zhTW } from 'date-fns/locale';
 import { getGlucoseStatus, getGlucoseColor } from '../utils/helpers';
 import clsx from 'clsx';
 
@@ -40,7 +41,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
         if (initialData) {
             setFormData({
                 ...initialData,
-                timestamp: initialData.timestamp.slice(0, 16)
+                timestamp: format(parseISO(initialData.timestamp), "yyyy-MM-dd'T'HH:mm")
             });
             if (initialData.details) {
                 try {
@@ -367,14 +368,25 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">日期時間</label>
-                                <input
-                                    type="datetime-local"
-                                    required
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                    value={formData.timestamp}
-                                    onChange={e => setFormData({ ...formData, timestamp: e.target.value })}
-                                />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">日期時間</label>
+                                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                    <input
+                                        type="datetime-local"
+                                        required
+                                        className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                        value={formData.timestamp}
+                                        onChange={e => setFormData({ ...formData, timestamp: e.target.value })}
+                                    />
+                                    {formData.timestamp && (
+                                        <div className="text-sm text-gray-500 whitespace-nowrap">
+                                            {(() => {
+                                                try {
+                                                    return format(new Date(formData.timestamp), 'yyyy/MM/dd aa h:mm', { locale: zhTW });
+                                                } catch (e) { return ''; }
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-12 gap-4">
