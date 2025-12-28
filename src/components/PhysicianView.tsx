@@ -285,18 +285,19 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                     <td className={clsx("px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium align-top",
                                         isWeekend ? "bg-orange-50 text-orange-800" : "text-gray-900"
                                     )}>
-                                        <div>{format(dateObj, 'MM/dd')}</div>
-                                        <div className="flex items-center gap-1">
-                                            <span className={clsx("text-[10px]", isWeekend ? "text-orange-600/70" : "text-gray-400")}>
-                                                {format(dateObj, 'eee', { locale: zhTW }).replace('週', '')}
-                                            </span>
+                                        <div className="flex flex-col items-start gap-1">
+                                            <div>
+                                                {format(dateObj, 'MM/dd')}
+                                                <span className={clsx("text-[10px] ml-1", isWeekend ? "text-orange-600/70" : "text-gray-400")}>
+                                                    {format(dateObj, 'eee', { locale: zhTW }).replace('週', '')}
+                                                </span>
+                                            </div>
                                             {hasNote && renderNoteIcons(dayRecords)}
                                         </div>
                                     </td>
 
                                     {/* BP */}
-                                    {/* BP */}
-                                    <td className="px-2 sm:px-6 py-2 sm:py-2 whitespace-nowrap text-xs sm:text-sm text-gray-700 align-top">
+                                    <td className="px-1 sm:px-2 py-2 sm:py-2 whitespace-nowrap text-xs sm:text-sm text-gray-700 align-top">
                                         {(() => {
                                             const amRecords = dayRecords.filter(r => parseInt(format(parseISO(r.timestamp), 'H')) < 16);
                                             const pmRecords = dayRecords.filter(r => parseInt(format(parseISO(r.timestamp), 'H')) >= 16);
@@ -318,12 +319,12 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
 
                                                 return (
                                                     <div className={clsx(
-                                                        "flex items-center justify-between p-1.5 rounded mb-1 last:mb-0",
+                                                        "flex items-center justify-between p-1 rounded mb-1 last:mb-0 gap-1",
                                                         bgClass,
                                                         (isWide || isNarrow) && "ring-1 ring-red-200"
                                                     )}>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[10px] text-gray-400 w-6">{label}</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-[10px] text-gray-400 w-5">{label}</span>
                                                             {latest ? (
                                                                 <span className={clsx(
                                                                     "font-semibold",
@@ -333,13 +334,13 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                                                 </span>
                                                             ) : <span className="text-gray-300">-</span>}
                                                         </div>
-                                                        <div className="flex items-center gap-1.5">
+                                                        <div className="flex items-center gap-1">
                                                             {hr ? (
-                                                                <span className={clsx("text-[10px]", isHrAbnormal ? "text-red-500 font-bold" : "text-gray-500")}>
-                                                                    HR:{hr}
+                                                                <span className={clsx("text-[10px] flex items-center", isHrAbnormal ? "text-red-500 font-bold" : "text-gray-500")}>
+                                                                    <span className="text-red-400 text-[10px] mr-0.5">❤️</span>{hr}
                                                                 </span>
                                                             ) : null}
-                                                            {weatherIcon && <span className="text-sm" title={`天氣: ${weatherRec?.weather}`}>{weatherIcon}</span>}
+                                                            {weatherIcon && <span className="text-sm scale-75 origin-right" title={`天氣: ${weatherRec?.weather}`}>{weatherIcon}</span>}
                                                         </div>
                                                     </div>
                                                 );

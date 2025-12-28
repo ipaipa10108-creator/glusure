@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { HealthRecord, TimeRange, DEFAULT_THRESHOLDS, HealthThresholds } from '../types';
 import { format, parseISO, subMonths, subYears, isAfter } from 'date-fns';
-import { Edit2, Trash2 } from 'lucide-react';
+import { zhTW } from 'date-fns/locale';
+import { Edit2, Trash2, Activity } from 'lucide-react';
 import clsx from 'clsx';
 
 interface RecordListProps {
@@ -13,6 +14,7 @@ interface RecordListProps {
 
 export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelete, thresholds = DEFAULT_THRESHOLDS }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('month');
+    const [selectedNoteRecord, setSelectedNoteRecord] = useState<HealthRecord | null>(null);
 
     const filteredAndSortedRecords = useMemo(() => {
         const now = new Date();
@@ -42,6 +44,38 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
     const isBPAbnormal = (sys: number, dia: number) => sys > thresholds.systolicHigh || dia > thresholds.diastolicHigh;
     const isGlucoseAbnormal = (fasting?: number, postMeal?: number) =>
         (fasting && fasting > thresholds.fastingHigh) || (postMeal && postMeal > thresholds.postMealHigh);
+
+    const renderNoteIcons = (record: HealthRecord) => {
+        if (!record.noteContent) return null;
+        let note: any = {};
+        try {
+            note = JSON.parse(record.noteContent);
+        } catch { return null; }
+
+        const diets = note.diets || [];
+        const exercises = note.exercises || [];
+        const hasOther = !!note.otherNote;
+
+        if (diets.length === 0 && exercises.length === 0 && !hasOther) return null;
+
+        const dietIcons: Record<string, string> = { bigMeal: '🥩', normal: '🍱', dieting: '🥗', fasting: '💧' };
+        const exerciseIcons: Record<string, string> = { walking: '🚶', cycling: '🚴', resistance: '🏋️', other: '📝' };
+
+        return (
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedNoteRecord(record);
+                }}
+                className="ml-2 inline-flex items-center gap-0.5 p-0.5 hover:bg-gray-100 rounded transition-colors text-sm"
+                title="查看備註詳情"
+            >
+                {diets.map((d: string) => <span key={d}>{dietIcons[d] || ''}</span>)}
+                {exercises.map((e: any, idx: number) => <span key={idx}>{exerciseIcons[e.type] || '📝'}</span>)}
+                {hasOther && !exercises.some((e: any) => e.type === 'other') && <span>📝</span>}
+            </button>
+        );
+    };
 
     return (
         <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -73,9 +107,12 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
                         <li key={record.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50">
                             <div className="flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-teal-600 truncate">
-                                        {format(parseISO(record.timestamp), 'yyyy/MM/dd HH:mm')}
-                                    </p>
+                                    <div className="flex items-center">
+                                        <p className="text-sm font-medium text-teal-600 truncate">
+                                            {format(parseISO(record.timestamp), 'yyyy/MM/dd HH:mm')}
+                                        </p>
+                                        {renderNoteIcons(record)}
+                                    </div>
                                     <div className="mt-2 flex items-center text-sm text-gray-500 gap-4 flex-wrap">
                                         {hasWeight && <span>體重: {record.weight}kg</span>}
                                         {hasBP && (
@@ -116,6 +153,75 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
                     );
                 })}
             </ul>
+
+            {/* Note Detail Modal */}
+            {selectedNoteRecord && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedNoteRecord(null)}></div>
+                    <div className="relative bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-4 py-3 bg-teal-50 border-b border-teal-100 flex justify-between items-center">
+                            <h4 className="font-medium text-teal-800">
+                                {format(parseISO(selectedNoteRecord.timestamp), 'yyyy/MM/dd HH:mm')} 備註
+                            </h4>
+                            <button onClick={() => setSelectedNoteRecord(null)} className="text-teal-600 hover:text-teal-800">
+                                <Activity className="w-4 h-4 rotate-45" />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            {(() => {
+                                let content: any = {};
+                                try { content = JSON.parse(selectedNoteRecord.noteContent || '{}'); } catch (e) { return null; }
+                                return (
+                                    <>
+                                        {/* Diet */}
+                                        {content.diets && content.diets.length > 0 && (
+                                            <div>
+                                                <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">飲食內容</h5>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {content.diets.map((d: string) => (
+                                                        <span key={d} className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">
+                                                            {d === 'bigMeal' ? '🥩 大餐' : d === 'normal' ? '🍱 一般' : d === 'dieting' ? '🥗 節食' : '💧 斷食'}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Exercise */}
+                                        {content.exercises && content.exercises.length > 0 && (
+                                            <div>
+                                                <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">運動紀錄</h5>
+                                                <ul className="space-y-1">
+                                                    {content.exercises.map((e: any, idx: number) => (
+                                                        <li key={idx} className="text-sm text-gray-700 flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0"></span>
+                                                            {e.type === 'walking' && '🚶 健走'}
+                                                            {e.type === 'cycling' && '🚴 腳踏車'}
+                                                            {e.type === 'resistance' && '🏋️ 阻力訓練'}
+                                                            {e.type === 'other' && `📝 ${e.customName || '其他'}`}
+                                                            {e.durationMinutes && <span className="text-gray-400 text-xs">({e.durationMinutes} min)</span>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {/* Other */}
+                                        {content.otherNote && (
+                                            <div>
+                                                <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">其他備註</h5>
+                                                <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                                                    {content.otherNote}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
