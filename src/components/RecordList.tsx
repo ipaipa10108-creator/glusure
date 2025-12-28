@@ -13,10 +13,19 @@ interface RecordListProps {
 
 export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelete, thresholds = DEFAULT_THRESHOLDS }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('month');
+    const [referenceDate, setReferenceDate] = useState<Date | null>(null);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [selectedNoteRecord, setSelectedNoteRecord] = useState<HealthRecord | null>(null);
 
     const filteredAndSortedRecords = useMemo(() => {
-        const now = new Date();
+        let now: Date;
+        if (referenceDate) {
+            now = new Date(referenceDate);
+            now.setHours(23, 59, 59, 999);
+        } else {
+            now = new Date();
+        }
+
         let startDate: Date;
 
         switch (timeRange) {
@@ -28,9 +37,26 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
         }
 
         return [...records]
-            .filter(r => isAfter(parseISO(r.timestamp), startDate))
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    }, [records, timeRange]);
+            .filter(r => {
+                const recordDate = parseISO(r.timestamp);
+                return isAfter(recordDate, startDate) && (referenceDate ? recordDate <= now : true);
+            })
+            .sort((a, b) => {
+                const timeA = new Date(a.timestamp).getTime();
+                const timeB = new Date(b.timestamp).getTime();
+                return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+            });
+    }, [records, timeRange, referenceDate, sortOrder]);
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value) {
+            setReferenceDate(new Date(e.target.value));
+        } else {
+            setReferenceDate(null);
+        }
+    };
+
+    const resetDate = () => setReferenceDate(null);
 
     const ranges: { value: TimeRange; label: string }[] = [
         { value: 'month', label: '近一月' },
@@ -78,21 +104,52 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
 
     return (
         <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">紀錄管理</h3>
-                <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar">
-                    {ranges.map((range) => (
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex flex-col xl:flex-row justify-between items-center gap-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 w-full xl:w-auto text-center xl:text-left">紀錄管理</h3>
+
+                <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center justify-center">
+                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar">
+                        {ranges.map((range) => (
+                            <button
+                                key={range.value}
+                                onClick={() => setTimeRange(range.value)}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
+                                    ? 'bg-white text-teal-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-900'
+                                    }`}
+                            >
+                                {range.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center px-2 bg-gray-50 rounded-lg border border-gray-200 py-1">
+                            <span className="text-xs text-gray-500 mr-2 whitespace-nowrap">基準日:</span>
+                            <input
+                                type="date"
+                                value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
+                                onChange={handleDateChange}
+                                className="text-xs border-transparent bg-transparent focus:border-transparent focus:ring-0 p-0 text-gray-700 w-24"
+                            />
+                            {referenceDate && (
+                                <button
+                                    onClick={resetDate}
+                                    className="ml-2 text-xs text-teal-600 hover:text-teal-800 underline whitespace-nowrap px-1"
+                                >
+                                    回今天
+                                </button>
+                            )}
+                        </div>
+
                         <button
-                            key={range.value}
-                            onClick={() => setTimeRange(range.value)}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
-                                ? 'bg-white text-teal-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-900'
-                                }`}
+                            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                            className="p-1.5 text-gray-500 hover:text-teal-600 bg-gray-50 hover:bg-teal-50 border border-gray-200 rounded-lg transition-colors flex items-center gap-1"
+                            title={sortOrder === 'desc' ? "目前：新→舊" : "目前：舊→新"}
                         >
-                            {range.label}
+                            <span className="text-xs font-medium">{sortOrder === 'desc' ? '新→舊' : '舊→新'}</span>
                         </button>
-                    ))}
+                    </div>
                 </div>
             </div>
             <ul className="divide-y divide-gray-200">

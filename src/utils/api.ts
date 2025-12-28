@@ -95,13 +95,31 @@ export const login = async (name: string, password?: string): Promise<UserSettin
 
     const result = await callGasApi({ action: 'login', name, password });
     if (result && result.status === 'success') {
+        let thresholds = undefined;
+        let showAlertLines = undefined;
+        let showAuxiliaryLines = undefined;
+
+        if (result.settings.thresholds) {
+            try {
+                const parsed = JSON.parse(result.settings.thresholds);
+                // Extract display preferences if they exist in the stored JSON
+                // Using 'in' operator check or property access
+                if (parsed.showAlertLines !== undefined) showAlertLines = parsed.showAlertLines;
+                if (parsed.showAuxiliaryLines !== undefined) showAuxiliaryLines = parsed.showAuxiliaryLines;
+
+                thresholds = parsed;
+            } catch (e) {
+                console.error('Failed to parse thresholds JSON', e);
+            }
+        }
+
         return {
             name: result.settings.name,
             email: result.settings.email,
             rememberMe: true,
-            thresholds: result.settings.thresholds
-                ? JSON.parse(result.settings.thresholds)
-                : undefined
+            thresholds: thresholds,
+            showAlertLines: showAlertLines,
+            showAuxiliaryLines: showAuxiliaryLines
         };
     }
     return null;
@@ -124,11 +142,18 @@ export const registerUser = async (name: string, password?: string, email?: stri
 };
 
 export const updateUserSettings = async (settings: UserSettings): Promise<boolean> => {
+    // Pack boolean preferences into thresholds JSON for storage
+    const thresholdsToSave = {
+        ...settings.thresholds,
+        showAlertLines: settings.showAlertLines,
+        showAuxiliaryLines: settings.showAuxiliaryLines
+    };
+
     const payload = {
         action: 'updateSettings',
         settings: {
             ...settings,
-            thresholds: JSON.stringify(settings.thresholds)
+            thresholds: JSON.stringify(thresholdsToSave)
         }
     };
     const result = await callGasApi(payload);
