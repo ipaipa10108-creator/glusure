@@ -47,6 +47,17 @@ function App() {
         const targetUser = currentUserName || user?.name;
         if (!targetUser) return;
 
+        // Try load from cache first for immediate display
+        const cacheKey = `glusure_cache_${targetUser}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                setRecords(JSON.parse(cached));
+            } catch (e) {
+                console.error('Failed to parse cache', e);
+            }
+        }
+
         let data = await getRecords();
 
         // Filter by user
@@ -60,6 +71,8 @@ function App() {
         }
 
         setRecords(userRecords);
+        // Save to cache
+        localStorage.setItem(cacheKey, JSON.stringify(userRecords));
     };
 
     const handleLogin = (settings: UserSettings) => {
@@ -76,6 +89,12 @@ function App() {
                 localStorage.setItem('glusure_user_full', JSON.stringify(loggedOutUser));
             } catch (e) { }
         }
+
+        // Clear user-specific cache on logout
+        if (user?.name) {
+            localStorage.removeItem(`glusure_cache_${user.name}`);
+        }
+
         setUser(null);
         setRecords([]);
     };

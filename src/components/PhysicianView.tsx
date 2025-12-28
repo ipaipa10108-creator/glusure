@@ -271,7 +271,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                             <th scope="col" className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 血糖監測 ({viewMode === 'detailed' ? '列表' : '時間軸'})
                             </th>
-                            <th scope="col" className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 sm:w-24 hidden md:table-cell">
+                            <th scope="col" className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 sm:w-24">
                                 體重
                             </th>
                         </tr>
@@ -337,7 +337,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                                                         {renderGlucoseDetailsForDay([record])}
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-2 py-2 text-xs text-gray-600 align-top w-20 sm:w-24 border-l border-gray-50 text-right hidden md:table-cell">
+                                                                <td className="px-2 py-2 text-xs text-gray-600 align-top w-20 sm:w-24 border-l border-gray-50 text-right">
                                                                     {hasWeight ? `${record.weight}kg` : '-'}
                                                                 </td>
                                                             </tr>
