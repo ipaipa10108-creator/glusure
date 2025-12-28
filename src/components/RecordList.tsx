@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { HealthRecord, TimeRange, DEFAULT_THRESHOLDS, HealthThresholds } from '../types';
 import { format, parseISO, subMonths, subYears, isAfter } from 'date-fns';
-import { zhTW } from 'date-fns/locale';
 import { Edit2, Trash2, Activity } from 'lucide-react';
 import clsx from 'clsx';
 
