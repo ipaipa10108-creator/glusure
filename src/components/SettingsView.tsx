@@ -89,8 +89,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                         </div>
                     </section>
 
+
+
+                    {/* Display Preferences */}
+                    < section className="space-y-4" >
+                        <h4 className="font-medium text-gray-700 flex items-center">
+                            <span className="w-1.5 h-6 bg-teal-500 rounded-full mr-2"></span>
+                            顯示偏好
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                <span className="text-sm text-gray-700">預設顯示警示線</span>
+                                <input
+                                    type="checkbox"
+                                    className="h-5 w-5 text-teal-600 rounded border-gray-300 focus:ring-teal-500"
+                                    checked={user.showAlertLines !== false} // Default to true if undefined
+                                    onChange={(e) => onUpdate({ ...user, showAlertLines: e.target.checked })}
+                                />
+                            </label>
+                            <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                <span className="text-sm text-gray-700">預設顯示輔助線視覺</span>
+                                <input
+                                    type="checkbox"
+                                    className="h-5 w-5 text-teal-600 rounded border-gray-300 focus:ring-teal-500"
+                                    checked={user.showAuxiliaryLines !== false} // Default to true if undefined
+                                    onChange={(e) => onUpdate({ ...user, showAuxiliaryLines: e.target.checked })}
+                                />
+                            </label>
+                        </div>
+                    </section >
+
                     {/* Thresholds Section */}
-                    <section className="space-y-4">
+                    < section className="space-y-4" >
                         <h4 className="font-medium text-gray-700 flex items-center">
                             <span className="w-1.5 h-6 bg-teal-500 rounded-full mr-2"></span>
                             警示閾值自訂 (超過此數值標示為異常)
@@ -165,7 +195,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                 </div>
                             </div>
                         </div>
-                    </section>
+                    </section >
 
                     <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
@@ -189,8 +219,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                             {loading ? '儲存中...' : '儲存變更'}
                         </button>
                     </div>
-                </form>
-            </div>
-        </div>
+                </form >
+            </div >
+        </div >
     );
 };

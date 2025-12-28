@@ -37,6 +37,7 @@ export interface NoteContent {
     diets?: DietType[];
     exercises?: ExerciseRecord[];
     otherNote?: string;
+    otherNoteColor?: string; // Hex color code
 }
 
 export interface HealthThresholds {
@@ -55,6 +56,8 @@ export interface UserSettings {
     rememberMe: boolean;
     rememberPassword?: boolean;
     thresholds?: HealthThresholds;
+    showAlertLines?: boolean;
+    showAuxiliaryLines?: boolean;
 }
 
 export const DEFAULT_THRESHOLDS: HealthThresholds = {

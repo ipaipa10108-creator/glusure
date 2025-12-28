@@ -51,7 +51,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
         { value: 'all', label: '全部' },
     ];
 
-    const [showThresholds, setShowThresholds] = useState(true);
+    const [showThresholds, setShowThresholds] = useState<boolean>(true);
+    const [showAuxiliaryLines, setShowAuxiliaryLines] = useState<boolean>(true);
+
+    // Initialize from user settings
+    React.useEffect(() => {
+        if (userSettings) {
+            if (userSettings.showAlertLines !== undefined) setShowThresholds(userSettings.showAlertLines);
+            if (userSettings.showAuxiliaryLines !== undefined) setShowAuxiliaryLines(userSettings.showAuxiliaryLines);
+        }
+    }, [userSettings]);
 
     return (
         <div className="space-y-6">
@@ -110,7 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 {/* Center: Add Record Button */}
-                <div className="flex-shrink-0 mx-auto flex items-center gap-4">
+                <div className="flex-shrink-0 mx-auto flex items-center gap-2 sm:gap-4 flex-wrap justify-center">
                     <button
                         onClick={onAddRecord}
                         className="inline-flex items-center px-6 py-3 border border-transparent rounded-full shadow-lg text-base font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transform hover:scale-105 transition-all whitespace-nowrap"
@@ -118,16 +127,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <Plus className="-ml-1 mr-2 h-5 w-5" />
                         新增紀錄
                     </button>
-                    <button
-                        onClick={() => setShowThresholds(!showThresholds)}
-                        className={`inline-flex items-center px-3 py-2 border rounded-full text-sm font-medium shadow-sm transition-all whitespace-nowrap ${showThresholds
-                            ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                            }`}
-                        title={showThresholds ? "隱藏警示線" : "顯示警示線"}
-                    >
-                        警示線: {showThresholds ? 'ON' : 'OFF'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowThresholds(!showThresholds)}
+                            className={`inline-flex items-center px-3 py-2 border rounded-full text-xs font-medium shadow-sm transition-all whitespace-nowrap ${showThresholds
+                                ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                }`}
+                            title={showThresholds ? "隱藏警示線" : "顯示警示線"}
+                        >
+                            警示線: {showThresholds ? 'ON' : 'OFF'}
+                        </button>
+                        <button
+                            onClick={() => setShowAuxiliaryLines(!showAuxiliaryLines)}
+                            className={`inline-flex items-center px-3 py-2 border rounded-full text-xs font-medium shadow-sm transition-all whitespace-nowrap ${showAuxiliaryLines
+                                ? 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100'
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                }`}
+                            title={showAuxiliaryLines ? "隱藏輔助視覺" : "顯示輔助視覺"}
+                        >
+                            輔助線: {showAuxiliaryLines ? 'ON' : 'OFF'}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Right Side: Spacer to balance layout if needed, or just empty */}
@@ -142,6 +163,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 referenceDate={referenceDate || undefined}
                 thresholds={userSettings?.thresholds}
                 showThresholds={showThresholds}
+                showAuxiliaryLines={showAuxiliaryLines}
             />
         </div>
     );

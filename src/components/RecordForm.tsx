@@ -304,6 +304,34 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                                         value={noteDraft.otherNote || ''}
                                         onChange={e => setNoteDraft(prev => ({ ...prev, otherNote: e.target.value }))}
                                     />
+                                    {noteDraft.otherNote && (
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <span className="text-xs text-gray-500">標記顏色:</span>
+                                            <div className="flex gap-1">
+                                                {[
+                                                    { color: '#10B981', label: '綠' }, // Default Green
+                                                    { color: '#EF4444', label: '紅' }, // Red
+                                                    { color: '#F97316', label: '橘' }, // Orange
+                                                    { color: '#3B82F6', label: '藍' }, // Blue
+                                                    { color: '#8B5CF6', label: '紫' }, // Purple
+                                                ].map(c => (
+                                                    <button
+                                                        key={c.color}
+                                                        type="button"
+                                                        onClick={() => setNoteDraft(prev => ({ ...prev, otherNoteColor: c.color }))}
+                                                        className={clsx(
+                                                            "w-6 h-6 rounded-full border-2 transition-transform hover:scale-110",
+                                                            (noteDraft.otherNoteColor === c.color || (!noteDraft.otherNoteColor && c.color === '#10B981'))
+                                                                ? "border-gray-600 ring-1 ring-offset-1 ring-gray-400"
+                                                                : "border-transparent"
+                                                        )}
+                                                        style={{ backgroundColor: c.color }}
+                                                        title={c.label}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="p-4 bg-gray-50 border-t border-gray-200">
