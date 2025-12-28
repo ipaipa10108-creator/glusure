@@ -182,22 +182,23 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                                     </h4>
                                     <div className="flex flex-wrap gap-2">
                                         {[
-                                            { id: 'bigMeal', label: '大餐' },
-                                            { id: 'normal', label: '一般' },
-                                            { id: 'dieting', label: '節食' },
-                                            { id: 'fasting', label: '斷食' }
+                                            { id: 'bigMeal', label: '大餐', icon: '🥩' },
+                                            { id: 'normal', label: '一般', icon: '🍱' },
+                                            { id: 'dieting', label: '節食', icon: '🥗' },
+                                            { id: 'fasting', label: '斷食', icon: '💧' }
                                         ].map(opt => (
                                             <button
                                                 key={opt.id}
                                                 type="button"
                                                 onClick={() => toggleDiet(opt.id as DietType)}
                                                 className={clsx(
-                                                    "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                                                    "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors flex items-center gap-1",
                                                     noteDraft.diets?.includes(opt.id as DietType)
                                                         ? "bg-orange-100 border-orange-300 text-orange-700"
                                                         : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                                                 )}
                                             >
+                                                <span>{opt.icon}</span>
                                                 {opt.label}
                                             </button>
                                         ))}
@@ -215,11 +216,11 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                                         <div className="mb-3 space-y-2">
                                             {noteDraft.exercises.map((ex, idx) => (
                                                 <div key={idx} className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded text-sm">
-                                                    <span>
-                                                        {ex.type === 'walking' && '健走'}
-                                                        {ex.type === 'cycling' && '腳踏車'}
-                                                        {ex.type === 'resistance' && '阻力訓練'}
-                                                        {ex.type === 'other' && (ex.customName || '其他')}
+                                                    <span className="flex items-center gap-1">
+                                                        {ex.type === 'walking' && '🚶 健走'}
+                                                        {ex.type === 'cycling' && '🚴 腳踏車'}
+                                                        {ex.type === 'resistance' && '🏋️ 阻力訓練'}
+                                                        {ex.type === 'other' && `📝 ${ex.customName || '其他'}`}
                                                         {ex.durationMinutes ? ` (${ex.durationMinutes} 分鐘)` : ''}
                                                     </span>
                                                     <button onClick={() => removeExercise(idx)} className="text-red-400 hover:text-red-600">
@@ -232,38 +233,60 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
 
                                     {/* Add New Exercise */}
                                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-3">
-                                        <div className="flex flex-wrap gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="運動時間 (分)"
+                                            className="w-full text-sm px-3 py-1.5 border border-gray-200 rounded focus:ring-teal-500 focus:border-teal-500"
+                                            value={exerciseDuration}
+                                            onChange={e => setExerciseDuration(e.target.value)}
+                                        />
+
+                                        <div className="flex flex-wrap gap-2 items-center">
                                             {[
-                                                { id: 'walking', label: '健走' },
-                                                { id: 'cycling', label: '腳踏車' },
-                                                { id: 'resistance', label: '阻力訓練' },
-                                                { id: 'other', label: '其他' }
+                                                { id: 'walking', label: '健走', icon: '🚶' },
+                                                { id: 'cycling', label: '腳踏車', icon: '🚴' },
+                                                { id: 'resistance', label: '阻力訓練', icon: '🏋️' }
                                             ].map(opt => (
                                                 <button
                                                     key={opt.id}
                                                     type="button"
                                                     onClick={() => addExercise(opt.id as ExerciseType)}
-                                                    className="px-3 py-1.5 rounded-md text-xs bg-white border border-gray-200 hover:border-teal-300 hover:text-teal-600"
+                                                    className="px-3 py-1.5 rounded-md text-sm bg-white border border-gray-200 hover:border-teal-300 hover:text-teal-600 flex items-center gap-1 transition-colors whitespace-nowrap"
                                                 >
-                                                    + {opt.label}
+                                                    <span>{opt.icon}</span>
+                                                    {opt.label}
                                                 </button>
                                             ))}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="number"
-                                                placeholder="運動時間 (分)"
-                                                className="flex-1 text-sm px-3 py-1.5 border border-gray-200 rounded"
-                                                value={exerciseDuration}
-                                                onChange={e => setExerciseDuration(e.target.value)}
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="自訂項目名稱 (選填)"
-                                                className="flex-1 text-sm px-3 py-1.5 border border-gray-200 rounded"
-                                                value={customExercise}
-                                                onChange={e => setCustomExercise(e.target.value)}
-                                            />
+
+                                            {/* Custom Exercise Input replacing "+ Other" */}
+                                            <div className="flex-1 min-w-[120px] flex gap-1">
+                                                <input
+                                                    type="text"
+                                                    placeholder="自訂項目名稱"
+                                                    className="flex-1 min-w-0 text-sm px-2 py-1.5 border border-gray-200 rounded focus:ring-teal-500 focus:border-teal-500"
+                                                    value={customExercise}
+                                                    onChange={e => setCustomExercise(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            addExercise('other');
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => addExercise('other')}
+                                                    disabled={!customExercise}
+                                                    className={clsx(
+                                                        "px-3 py-1.5 rounded-md text-sm border transition-colors whitespace-nowrap",
+                                                        customExercise
+                                                            ? "bg-teal-600 text-white border-teal-600 hover:bg-teal-700"
+                                                            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                                    )}
+                                                >
+                                                    新增
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

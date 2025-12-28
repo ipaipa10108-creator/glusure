@@ -357,7 +357,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                     <div className="flex flex-wrap gap-1">
                                         {selectedNote.content.diets.map((d: string) => (
                                             <span key={d} className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">
-                                                {d === 'bigMeal' ? '大餐' : d === 'normal' ? '一般' : d === 'dieting' ? '節食' : '斷食'}
+                                                {d === 'bigMeal' ? '🥩 大餐' : d === 'normal' ? '🍱 一般' : d === 'dieting' ? '🥗 節食' : '💧 斷食'}
                                             </span>
                                         ))}
                                     </div>
@@ -371,11 +371,11 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                     <ul className="space-y-1">
                                         {selectedNote.content.exercises.map((e: any, idx: number) => (
                                             <li key={idx} className="text-sm text-gray-700 flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
-                                                {e.type === 'walking' && '健走'}
-                                                {e.type === 'cycling' && '腳踏車'}
-                                                {e.type === 'resistance' && '阻力訓練'}
-                                                {e.type === 'other' && (e.customName || '其他')}
+                                                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0"></span>
+                                                {e.type === 'walking' && '🚶 健走'}
+                                                {e.type === 'cycling' && '🚴 腳踏車'}
+                                                {e.type === 'resistance' && '🏋️ 阻力訓練'}
+                                                {e.type === 'other' && `📝 ${e.customName || '其他'}`}
                                                 {e.durationMinutes && <span className="text-gray-400 text-xs">({e.durationMinutes} min)</span>}
                                             </li>
                                         ))}
