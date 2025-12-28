@@ -179,21 +179,24 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
             note = JSON.parse(record.noteContent);
         } catch { return null; }
 
-        const hasDiet = note.diets && note.diets.length > 0;
-        const hasExercise = note.exercises && note.exercises.length > 0;
+        const diets = note.diets || [];
+        const exercises = note.exercises || [];
         const hasOther = !!note.otherNote;
 
-        if (!hasDiet && !hasExercise && !hasOther) return null;
+        if (diets.length === 0 && exercises.length === 0 && !hasOther) return null;
+
+        const dietIcons: Record<string, string> = { bigMeal: '🥩', normal: '🍱', dieting: '🥗', fasting: '💧' };
+        const exerciseIcons: Record<string, string> = { walking: '🚶', cycling: '🚴', resistance: '🏋️', other: '📝' };
 
         return (
             <button
                 onClick={() => setSelectedNote({ date: record.timestamp, content: note })}
-                className="ml-1 inline-flex items-center justify-center p-0.5 hover:bg-gray-100 rounded transition-colors"
+                className="ml-1 inline-flex items-center gap-0.5 p-0.5 hover:bg-gray-100 rounded transition-colors text-xs"
                 title="查看備註詳情"
             >
-                {hasDiet && <span className="text-xs">🍽️</span>}
-                {hasExercise && <span className="text-xs">🏃</span>}
-                {hasOther && <span className="text-xs">📝</span>}
+                {diets.map((d: string) => <span key={d}>{dietIcons[d] || ''}</span>)}
+                {exercises.map((e: any, idx: number) => <span key={idx}>{exerciseIcons[e.type] || '📝'}</span>)}
+                {hasOther && !exercises.some((e: any) => e.type === 'other') && <span>📝</span>}
             </button>
         );
     };

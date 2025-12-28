@@ -398,7 +398,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                                                     : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
                                             )}
                                         >
-                                            備註
+                                            新增備註
                                             {(noteDraft.diets?.length || noteDraft.exercises?.length || noteDraft.otherNote) ? <div className="w-2 h-2 rounded-full bg-red-400 ml-1" /> : null}
                                         </button>
                                     </div>
@@ -411,7 +411,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                                             <button
                                                 key={w.id}
                                                 type="button"
-                                                onClick={() => setFormData({ ...formData, weather: w.id as WeatherType })}
+                                                onClick={() => setFormData(prev => ({ ...prev, weather: prev.weather === w.id ? undefined : w.id as WeatherType }))}
                                                 className={clsx(
                                                     "flex-1 py-1 text-xs rounded border transition-all",
                                                     formData.weather === w.id
