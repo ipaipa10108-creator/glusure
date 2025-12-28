@@ -4,7 +4,7 @@ import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, is
 import { zhTW } from 'date-fns/locale';
 import { getGlucoseStatus } from '../utils/helpers';
 import clsx from 'clsx';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, Activity } from 'lucide-react';
+import { ArrowDown, ArrowUp, Activity } from 'lucide-react';
 
 import { DEFAULT_THRESHOLDS } from '../types';
 
@@ -209,78 +209,153 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
         );
     };
 
-    return (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
-            {/* Header & Controls */}
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                    <Activity className="w-5 h-5 mr-2 text-teal-600" />
-                    醫師檢視模式 (每日彙整)
-                </h3>
+    const [viewMode, setViewMode] = useState<'simple' | 'detailed'>('simple');
 
-                <div className="flex items-center gap-2 overflow-x-auto max-w-full no-scrollbar">
-                    <div className="flex bg-white border border-gray-200 rounded-lg p-1 shrink-0">
-                        {ranges.map(r => (
+    return (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+            {/* Header / Filter */}
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
+                        <Activity className="h-5 w-5 text-teal-500 mr-2" />
+                        醫師檢視模式 (每日彙整)
+                    </h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
+                        {ranges.map((range) => (
                             <button
-                                key={r.value}
-                                onClick={() => setTimeRange(r.value)}
-                                className={clsx(
-                                    "px-2 sm:px-3 py-1 text-xs rounded transition-colors whitespace-nowrap",
-                                    timeRange === r.value ? "bg-teal-100 text-teal-700 font-medium" : "text-gray-600 hover:bg-gray-50"
-                                )}
+                                key={range.value}
+                                onClick={() => setTimeRange(range.value)}
+                                className={`px-2 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
+                                    ? 'bg-white text-teal-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-900'
+                                    }`}
                             >
-                                {r.label}
+                                {range.label}
                             </button>
                         ))}
                     </div>
-
                     <button
-                        onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-                        className="p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600 shrink-0"
-                        title="切換排序"
+                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        className="p-2 text-gray-500 hover:text-teal-600 bg-gray-50 hover:bg-teal-50 rounded-lg transition-colors"
+                        title={sortOrder === 'asc' ? "日期：舊→新" : "日期：新→舊"}
                     >
-                        {sortOrder === 'desc' ? <ArrowDownWideNarrow size={18} /> : <ArrowUpNarrowWide size={18} />}
+                        {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                    </button>
+                    <button
+                        onClick={() => setViewMode(prev => prev === 'simple' ? 'detailed' : 'simple')}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${viewMode === 'detailed'
+                            ? 'bg-teal-50 border-teal-200 text-teal-700'
+                            : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                            }`}
+                        title="切換顯示模式"
+                    >
+                        {viewMode === 'simple' ? '簡易' : '詳細'}
                     </button>
                 </div>
             </div>
 
+            {/* Table */}
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">日期/備註</th>
-                            <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[20%]">血壓 (最新)</th>
-                            <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[50%]">血糖監測 (時間軸)</th>
-                            <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%] text-right">體重</th>
+                            <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24 sm:w-32">
+                                日期/備註
+                            </th>
+                            <th scope="col" className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32 sm:w-48">
+                                血壓 ({viewMode === 'detailed' ? '全部' : '最新'})
+                            </th>
+                            <th scope="col" className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                血糖監測 ({viewMode === 'detailed' ? '列表' : '時間軸'})
+                            </th>
+                            <th scope="col" className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 sm:w-24 hidden md:table-cell">
+                                體重
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {groupedRecords.map(({ date, records: dayRecords }) => {
-                            const { isAbnormal: weightAbnormal, diff: weightDiff } = getPreviousDayWeightDiff(date, dayRecords);
+                        {groupedRecords.map(({ date: dateKey, records: dayRecords }) => {
+                            const dateObj = parseISO(dateKey);
+                            const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                            const hasNote = dayRecords.some(r => r.noteContent && r.noteContent !== '{}');
 
+                            // Detailed Mode Rendering
+                            if (viewMode === 'detailed') {
+                                return (
+                                    <tr key={dateKey} className={clsx("hover:bg-gray-50 transition-colors", isWeekend ? "bg-orange-50/30" : "")}>
+                                        {/* Date */}
+                                        <td className={clsx("px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium align-top border-r border-gray-100",
+                                            isWeekend ? "text-orange-800" : "text-gray-900"
+                                        )}>
+                                            <div className="sticky top-0">
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <div>
+                                                        {format(dateObj, 'MM/dd')}
+                                                        <span className={clsx("text-[10px] ml-1", isWeekend ? "text-orange-600/70" : "text-gray-400")}>
+                                                            {format(dateObj, 'eee', { locale: zhTW }).replace('週', '')}
+                                                        </span>
+                                                    </div>
+                                                    {hasNote && renderNoteIcons(dayRecords)}
+                                                </div>
+                                            </div>
+                                        </td>
 
+                                        {/* Records List */}
+                                        <td colSpan={3} className="p-0">
+                                            <table className="min-w-full divide-y divide-gray-100">
+                                                <tbody className="divide-y divide-gray-50">
+                                                    {[...dayRecords].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()).map(record => {
+                                                        const timeStr = format(parseISO(record.timestamp), 'HH:mm');
+                                                        const hasBP = record.systolic > 0;
+                                                        const hasGlucose = (record.glucoseFasting ?? 0) > 0 || (record.glucosePostMeal ?? 0) > 0 || (record.glucoseRandom ?? 0) > 0 || (record.details && JSON.parse(record.details).length > 0);
+                                                        const hasWeight = record.weight > 0;
+
+                                                        if (!hasBP && !hasGlucose && !hasWeight && !record.noteContent) return null; // Only render if there's actual data
+
+                                                        return (
+                                                            <tr key={record.id} className="group">
+                                                                <td className="px-2 py-2 w-32 sm:w-48 text-xs text-gray-500 border-r border-gray-50 bg-gray-50/30 align-top">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span>{timeStr}</span>
+                                                                        {hasBP && (
+                                                                            <span className={clsx(
+                                                                                "font-mono font-medium",
+                                                                                (record.systolic > thresholds.systolicHigh || record.diastolic > thresholds.diastolicHigh) ? "text-red-600" : "text-gray-700"
+                                                                            )}>
+                                                                                {record.systolic}/{record.diastolic}
+                                                                                {(record.heartRate ?? 0) > 0 && <span className="text-[10px] text-gray-400 ml-1">HR:{record.heartRate}</span>}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-2 py-2 text-xs align-top">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        {/* Render glucose details for this specific record */}
+                                                                        {renderGlucoseDetailsForDay([record])}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-2 py-2 text-xs text-gray-600 align-top w-20 sm:w-24 border-l border-gray-50 text-right hidden md:table-cell">
+                                                                    {hasWeight ? `${record.weight}kg` : '-'}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                );
+                            }
+
+                            // Simple Mode Rendering (Original)
+                            const { isAbnormal: weightAbnormal, diff: weightDiff } = getPreviousDayWeightDiff(dateKey, dayRecords);
                             const latestWeight = dayRecords.filter(r => r.weight > 0).pop()?.weight;
-                            // const latestBPRecord = dayRecords.filter(r => r.systolic > 0).pop();
-                            // Used inside renderBlock now
-
-                            // Find any record with weather for the day (prefer latest)
-                            // const weatherRecord = [...dayRecords].reverse().find(r => r.weather);
-                            // Used inside renderBlock now
-
-                            // Find if any record has note content (to enable the button)
-                            const hasNote = dayRecords.some(r => r.noteContent);
-
-                            // Date Logic
-                            const dateObj = parseISO(date);
-                            const dayOfWeek = dateObj.getDay(); // 0 is Sunday, 6 is Saturday
-                            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-                            // HR Logic - now handled inside renderBlock
-                            // const hr = latestBPRecord?.heartRate;
-                            // const isHrAbnormal = hr && (hr > 90 || hr < 60);
 
                             return (
-                                <tr key={date} className="hover:bg-gray-50 transition-colors">
+                                <tr key={dateKey} className="hover:bg-gray-50 transition-colors">
                                     {/* Date */}
                                     <td className={clsx("px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium align-top",
                                         isWeekend ? "bg-orange-50 text-orange-800" : "text-gray-900"

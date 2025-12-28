@@ -34,11 +34,12 @@ interface ChartSectionProps {
     onDataClick?: (record: HealthRecord) => void;
     referenceDate?: Date;
     thresholds?: HealthThresholds;
+    showThresholds?: boolean;
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -102,7 +103,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // Helper to create threshold line dataset
     const createThresholdLine = (value: number, label: string, color: string) => {
-        if (value <= 0) return null;
+        if (!showThresholds || value <= 0) return null;
         return {
             label: label,
             data: filteredRecords.map(() => value),
