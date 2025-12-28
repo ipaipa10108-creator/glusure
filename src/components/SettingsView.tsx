@@ -201,7 +201,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                         <div className="flex items-center gap-4">
                             <button
                                 type="button"
-                                onClick={() => setThresholds(DEFAULT_THRESHOLDS)}
+                                onClick={() => {
+                                    setThresholds(DEFAULT_THRESHOLDS);
+                                    // Reset display preferences to FALSE (Closed) as per user request
+                                    onUpdate({
+                                        ...user,
+                                        showAlertLines: false,
+                                        showAuxiliaryLines: false
+                                    });
+                                }}
                                 className="text-sm text-gray-500 hover:text-teal-600 underline transition-colors"
                             >
                                 恢復預設值
