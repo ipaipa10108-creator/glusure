@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HealthRecord, GlucoseReading } from '../types';
+import { HealthRecord, GlucoseReading, NoteContent, WeatherType, DietType, ExerciseType, ExerciseRecord } from '../types';
 import { X, Save, Trash2, List } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getGlucoseStatus, getGlucoseColor } from '../utils/helpers';
@@ -23,10 +23,18 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
         glucosePostMeal: undefined,
         glucoseRandom: undefined,
         timestamp: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        weather: undefined,
+        noteContent: undefined
     });
 
     const [details, setDetails] = useState<GlucoseReading[]>([]);
     const [showDetails, setShowDetails] = useState(false);
+
+    // Note Modal State
+    const [showNoteModal, setShowNoteModal] = useState(false);
+    const [noteDraft, setNoteDraft] = useState<NoteContent>({});
+    const [exerciseDuration, setExerciseDuration] = useState<string>('');
+    const [customExercise, setCustomExercise] = useState<string>('');
 
     useEffect(() => {
         if (initialData) {
@@ -41,6 +49,13 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
             } else {
                 setDetails([]);
             }
+            if (initialData.noteContent) {
+                try {
+                    setNoteDraft(JSON.parse(initialData.noteContent));
+                } catch (e) { setNoteDraft({}); }
+            } else {
+                setNoteDraft({});
+            }
         } else {
             setFormData({
                 weight: 0,
@@ -51,10 +66,14 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                 glucosePostMeal: undefined,
                 glucoseRandom: undefined,
                 timestamp: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+                weather: undefined,
+                noteContent: undefined
             });
             setDetails([]);
+            setNoteDraft({});
         }
         setShowDetails(false);
+        setShowNoteModal(false);
     }, [initialData, isOpen]);
 
     if (!isOpen) return null;
@@ -63,6 +82,11 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
         e.preventDefault();
         // Re-serialize details
         const finalizedDetails = JSON.stringify(details);
+
+        // Serialize Note Content if not empty
+        const finalizedNoteContent = (noteDraft.diets?.length || noteDraft.exercises?.length || noteDraft.otherNote)
+            ? JSON.stringify(noteDraft)
+            : undefined;
 
         onSubmit({
             id: initialData?.id,
@@ -80,7 +104,9 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
             glucoseFasting: formData.glucoseFasting ? Number(formData.glucoseFasting) : undefined,
             glucosePostMeal: formData.glucosePostMeal ? Number(formData.glucosePostMeal) : undefined,
             glucoseRandom: formData.glucoseRandom ? Number(formData.glucoseRandom) : undefined,
-            details: finalizedDetails // Send back modified details if any
+            details: finalizedDetails, // Send back modified details if any,
+            weather: formData.weather,
+            noteContent: finalizedNoteContent
         });
         onClose();
     };
@@ -93,6 +119,42 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
         }
     };
 
+    // Note Helpers
+    const toggleDiet = (type: DietType) => {
+        setNoteDraft(prev => {
+            const current = prev.diets || [];
+            if (current.includes(type)) {
+                return { ...prev, diets: current.filter(t => t !== type) };
+            } else {
+                return { ...prev, diets: [...current, type] };
+            }
+        });
+    };
+
+    const addExercise = (type: ExerciseType) => {
+        const duration = parseInt(exerciseDuration) || 0;
+        const record: ExerciseRecord = { type, durationMinutes: duration };
+        if (type === 'other' && customExercise) {
+            record.customName = customExercise;
+        }
+        setNoteDraft(prev => ({
+            ...prev,
+            exercises: [...(prev.exercises || []), record]
+        }));
+        // Reset inputs
+        setExerciseDuration('');
+        setCustomExercise('');
+    };
+
+    const removeExercise = (index: number) => {
+        setNoteDraft(prev => {
+            const current = prev.exercises || [];
+            const next = [...current];
+            next.splice(index, 1);
+            return { ...prev, exercises: next };
+        });
+    };
+
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -103,6 +165,134 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
                 <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+                    {/* Note Modal Overlay */}
+                    {showNoteModal && (
+                        <div className="absolute inset-0 z-10 bg-white flex flex-col">
+                            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                                <h3 className="text-lg font-medium text-gray-900">詳細備註與紀錄</h3>
+                                <button onClick={() => setShowNoteModal(false)} className="text-gray-400 hover:text-gray-600">
+                                    <X className="h-6 w-6" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                                {/* Diet Section */}
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center">
+                                        <span className="w-1 h-4 bg-orange-400 rounded mr-2"></span>飲食紀錄
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { id: 'bigMeal', label: '大餐' },
+                                            { id: 'normal', label: '一般' },
+                                            { id: 'dieting', label: '節食' },
+                                            { id: 'fasting', label: '斷食' }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.id}
+                                                type="button"
+                                                onClick={() => toggleDiet(opt.id as DietType)}
+                                                className={clsx(
+                                                    "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                                                    noteDraft.diets?.includes(opt.id as DietType)
+                                                        ? "bg-orange-100 border-orange-300 text-orange-700"
+                                                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                                                )}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Exercise Section */}
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center">
+                                        <span className="w-1 h-4 bg-teal-400 rounded mr-2"></span>運動紀錄
+                                    </h4>
+
+                                    {/* Existing Exercises List */}
+                                    {noteDraft.exercises && noteDraft.exercises.length > 0 && (
+                                        <div className="mb-3 space-y-2">
+                                            {noteDraft.exercises.map((ex, idx) => (
+                                                <div key={idx} className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded text-sm">
+                                                    <span>
+                                                        {ex.type === 'walking' && '健走'}
+                                                        {ex.type === 'cycling' && '腳踏車'}
+                                                        {ex.type === 'resistance' && '阻力訓練'}
+                                                        {ex.type === 'other' && (ex.customName || '其他')}
+                                                        {ex.durationMinutes ? ` (${ex.durationMinutes} 分鐘)` : ''}
+                                                    </span>
+                                                    <button onClick={() => removeExercise(idx)} className="text-red-400 hover:text-red-600">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Add New Exercise */}
+                                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-3">
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { id: 'walking', label: '健走' },
+                                                { id: 'cycling', label: '腳踏車' },
+                                                { id: 'resistance', label: '阻力訓練' },
+                                                { id: 'other', label: '其他' }
+                                            ].map(opt => (
+                                                <button
+                                                    key={opt.id}
+                                                    type="button"
+                                                    onClick={() => addExercise(opt.id as ExerciseType)}
+                                                    className="px-3 py-1.5 rounded-md text-xs bg-white border border-gray-200 hover:border-teal-300 hover:text-teal-600"
+                                                >
+                                                    + {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                placeholder="運動時間 (分)"
+                                                className="flex-1 text-sm px-3 py-1.5 border border-gray-200 rounded"
+                                                value={exerciseDuration}
+                                                onChange={e => setExerciseDuration(e.target.value)}
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="自訂項目名稱 (選填)"
+                                                className="flex-1 text-sm px-3 py-1.5 border border-gray-200 rounded"
+                                                value={customExercise}
+                                                onChange={e => setCustomExercise(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Other Notes */}
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center">
+                                        <span className="w-1 h-4 bg-blue-400 rounded mr-2"></span>其他隨手記
+                                    </h4>
+                                    <textarea
+                                        rows={4}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 text-sm"
+                                        placeholder="還有什麼想紀錄的嗎？"
+                                        value={noteDraft.otherNote || ''}
+                                        onChange={e => setNoteDraft(prev => ({ ...prev, otherNote: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="p-4 bg-gray-50 border-t border-gray-200">
+                                <button
+                                    onClick={() => setShowNoteModal(false)}
+                                    className="w-full py-2 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700"
+                                >
+                                    完成備註
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                         <div className="flex justify-between items-center mb-5">
                             <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -164,16 +354,65 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">體重 (kg)</label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                        value={formData.weight || ''}
-                                        onChange={e => setFormData({ ...formData, weight: Number(e.target.value) })}
-                                    />
+                            <div className="grid grid-cols-12 gap-4">
+                                <div className="col-span-12 sm:col-span-6">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">體重 (kg)</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                            value={formData.weight || ''}
+                                            onChange={e => setFormData({ ...formData, weight: Number(e.target.value) })}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNoteModal(true)}
+                                            className={clsx(
+                                                "shrink-0 px-3 py-2 rounded-md border text-sm transition-colors flex items-center gap-1",
+                                                (noteDraft.diets?.length || noteDraft.exercises?.length || noteDraft.otherNote)
+                                                    ? "bg-teal-50 border-teal-200 text-teal-700"
+                                                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                                            )}
+                                        >
+                                            備註
+                                            {(noteDraft.diets?.length || noteDraft.exercises?.length || noteDraft.otherNote) ? <div className="w-2 h-2 rounded-full bg-red-400 ml-1" /> : null}
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        {[
+                                            { id: 'hot', icon: '☀️', label: '熱' },
+                                            { id: 'moderate', icon: '🌤️', label: '適' },
+                                            { id: 'cold', icon: '❄️', label: '冷' },
+                                        ].map(w => (
+                                            <button
+                                                key={w.id}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, weather: w.id as WeatherType })}
+                                                className={clsx(
+                                                    "flex-1 py-1 text-xs rounded border transition-all",
+                                                    formData.weather === w.id
+                                                        ? "bg-blue-50 border-blue-400 text-blue-700 font-bold shadow-sm"
+                                                        : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
+                                                )}
+                                            >
+                                                {w.icon} {w.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="col-span-12 sm:col-span-6 flex flex-col justify-end pb-1">
+                                    {/* Weather Indicator for BP/Glucose Reference */}
+                                    {formData.weather && (
+                                        <div className="text-xs text-gray-500 flex items-center gap-1 bg-gray-50 px-2 py-1.5 rounded self-start sm:self-end w-full sm:w-auto">
+                                            <span>當日天氣註記:</span>
+                                            <span className="font-medium text-gray-800">
+                                                {formData.weather === 'hot' && '☀️ 熱'}
+                                                {formData.weather === 'moderate' && '🌤️ 適中'}
+                                                {formData.weather === 'cold' && '❄️ 冷'}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

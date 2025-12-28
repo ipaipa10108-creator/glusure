@@ -168,6 +168,36 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
         { value: 'all', label: '全部' },
     ];
 
+
+    // Note Detail Modal State
+    const [selectedNote, setSelectedNote] = useState<{ date: string; content: any } | null>(null);
+
+    const renderNoteIcons = (record: HealthRecord) => {
+        if (!record.noteContent) return null;
+        let note: any = {};
+        try {
+            note = JSON.parse(record.noteContent);
+        } catch { return null; }
+
+        const hasDiet = note.diets && note.diets.length > 0;
+        const hasExercise = note.exercises && note.exercises.length > 0;
+        const hasOther = !!note.otherNote;
+
+        if (!hasDiet && !hasExercise && !hasOther) return null;
+
+        return (
+            <button
+                onClick={() => setSelectedNote({ date: record.timestamp, content: note })}
+                className="ml-1 inline-flex items-center justify-center p-0.5 hover:bg-gray-100 rounded transition-colors"
+                title="查看備註詳情"
+            >
+                {hasDiet && <span className="text-xs">🍽️</span>}
+                {hasExercise && <span className="text-xs">🏃</span>}
+                {hasOther && <span className="text-xs">📝</span>}
+            </button>
+        );
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
             {/* Header & Controls */}
@@ -207,7 +237,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">日期</th>
+                            <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">日期/備註</th>
                             <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[20%]">血壓 (最新)</th>
                             <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[50%]">血糖監測 (時間軸)</th>
                             <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%] text-right">體重</th>
@@ -220,6 +250,15 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
 
                             const latestWeight = dayRecords.filter(r => r.weight > 0).pop()?.weight;
                             const latestBPRecord = dayRecords.filter(r => r.systolic > 0).pop();
+
+                            // Find any record with weather for the day (prefer latest)
+                            const weatherRecord = [...dayRecords].reverse().find(r => r.weather);
+                            const weatherIcon = weatherRecord?.weather === 'hot' ? '☀️'
+                                : weatherRecord?.weather === 'moderate' ? '🌤️'
+                                    : weatherRecord?.weather === 'cold' ? '❄️' : null;
+
+                            // Find any record with note content
+                            const noteRecord = [...dayRecords].reverse().find(r => r.noteContent);
 
                             // Date Logic
                             const dateObj = parseISO(date);
@@ -237,8 +276,11 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                         isWeekend ? "bg-orange-50 text-orange-800" : "text-gray-900"
                                     )}>
                                         <div>{format(dateObj, 'MM/dd')}</div>
-                                        <div className={clsx("text-[10px]", isWeekend ? "text-orange-600/70" : "text-gray-400")}>
-                                            {format(dateObj, 'eee', { locale: zhTW }).replace('週', '')}
+                                        <div className="flex items-center gap-1">
+                                            <span className={clsx("text-[10px]", isWeekend ? "text-orange-600/70" : "text-gray-400")}>
+                                                {format(dateObj, 'eee', { locale: zhTW }).replace('週', '')}
+                                            </span>
+                                            {noteRecord && renderNoteIcons(noteRecord)}
                                         </div>
                                     </td>
 
@@ -248,10 +290,13 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                     )}>
                                         {latestBPRecord ? (
                                             <>
-                                                <div className={clsx("font-semibold",
-                                                    (latestBPRecord.systolic > thresholds.systolicHigh || latestBPRecord.diastolic > thresholds.diastolicHigh) ? "text-red-600 font-black" : "text-gray-800"
-                                                )}>
-                                                    {latestBPRecord.systolic}/{latestBPRecord.diastolic}
+                                                <div className="flex items-center gap-1">
+                                                    <div className={clsx("font-semibold",
+                                                        (latestBPRecord.systolic > thresholds.systolicHigh || latestBPRecord.diastolic > thresholds.diastolicHigh) ? "text-red-600 font-black" : "text-gray-800"
+                                                    )}>
+                                                        {latestBPRecord.systolic}/{latestBPRecord.diastolic}
+                                                    </div>
+                                                    {weatherIcon && <span className="text-sm" title={`天氣: ${weatherRecord?.weather}`}>{weatherIcon}</span>}
                                                 </div>
                                                 {hr ? (
                                                     <div className={clsx("text-[10px] sm:text-xs mt-0.5", isHrAbnormal ? "text-red-500 font-bold" : "text-gray-500")}>
@@ -290,6 +335,67 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                     </tbody>
                 </table>
             </div>
+
+            {/* Note Details Modal */}
+            {selectedNote && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedNote(null)}></div>
+                    <div className="relative bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-4 py-3 bg-teal-50 border-b border-teal-100 flex justify-between items-center">
+                            <h4 className="font-medium text-teal-800">
+                                {format(parseISO(selectedNote.date), 'yyyy/MM/dd HH:mm')} 備註
+                            </h4>
+                            <button onClick={() => setSelectedNote(null)} className="text-teal-600 hover:text-teal-800">
+                                <Activity className="w-4 h-4 rotate-45" /> {/* Close icon using Activity rotated or just X if imported */}
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            {/* Diet */}
+                            {selectedNote.content.diets && selectedNote.content.diets.length > 0 && (
+                                <div>
+                                    <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">飲食內容</h5>
+                                    <div className="flex flex-wrap gap-1">
+                                        {selectedNote.content.diets.map((d: string) => (
+                                            <span key={d} className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">
+                                                {d === 'bigMeal' ? '大餐' : d === 'normal' ? '一般' : d === 'dieting' ? '節食' : '斷食'}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Exercise */}
+                            {selectedNote.content.exercises && selectedNote.content.exercises.length > 0 && (
+                                <div>
+                                    <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">運動紀錄</h5>
+                                    <ul className="space-y-1">
+                                        {selectedNote.content.exercises.map((e: any, idx: number) => (
+                                            <li key={idx} className="text-sm text-gray-700 flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                                                {e.type === 'walking' && '健走'}
+                                                {e.type === 'cycling' && '腳踏車'}
+                                                {e.type === 'resistance' && '阻力訓練'}
+                                                {e.type === 'other' && (e.customName || '其他')}
+                                                {e.durationMinutes && <span className="text-gray-400 text-xs">({e.durationMinutes} min)</span>}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Other */}
+                            {selectedNote.content.otherNote && (
+                                <div>
+                                    <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">其他備註</h5>
+                                    <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                                        {selectedNote.content.otherNote}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

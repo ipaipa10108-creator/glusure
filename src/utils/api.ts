@@ -41,7 +41,9 @@ export const getRecords = async (): Promise<HealthRecord[]> => {
                 glucosePostMeal: Number(item.glucose_post_meal) || 0,
                 glucoseRandom: Number(item.glucose_random) || 0,
                 details: details,
-                note: item.note
+                note: item.note,
+                weather: item.weather,
+                noteContent: item.note_content
             };
         });
     } catch (e) {

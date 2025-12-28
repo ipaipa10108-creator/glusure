@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { HealthRecord, TimeRange } from '../types';
+import { HealthRecord, TimeRange, HealthThresholds } from '../types';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -33,11 +33,12 @@ interface ChartSectionProps {
     timeRange: TimeRange;
     onDataClick?: (record: HealthRecord) => void;
     referenceDate?: Date;
+    thresholds?: HealthThresholds;
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -98,17 +99,39 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         onClick: (e: React.MouseEvent<HTMLCanvasElement>) => onClickHandler(e, ref)
     });
 
+
+    // Helper to create threshold line dataset
+    const createThresholdLine = (value: number, label: string, color: string) => {
+        if (value <= 0) return null;
+        return {
+            label: label,
+            data: filteredRecords.map(() => value),
+            borderColor: color,
+            borderWidth: 1,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false,
+            order: 999 // Ensure it renders behind or with correct z-index
+        };
+    };
+
+    const activeThresholds = thresholds || { weightHigh: 0, weightLow: 0, systolicHigh: 140, diastolicHigh: 90, fastingHigh: 100, postMealHigh: 140 };
+
     const weightData = {
         labels,
-        datasets: [{
-            label: '體重 (kg)',
-            data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
-            borderColor: 'rgb(53, 162, 235)',
-            backgroundColor: 'rgba(53, 162, 235, 0.2)',
-            fill: true,
-            spanGaps: true,
-            tension: 0.4,
-        }],
+        datasets: [
+            {
+                label: '體重 (kg)',
+                data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
+                borderColor: 'rgb(53, 162, 235)',
+                backgroundColor: 'rgba(53, 162, 235, 0.2)',
+                fill: true,
+                spanGaps: true,
+                tension: 0.4,
+            },
+            createThresholdLine(activeThresholds.weightHigh, '體重高標', 'rgba(255, 99, 132, 0.8)'),
+            createThresholdLine(activeThresholds.weightLow, '體重低標', 'rgba(255, 159, 64, 0.8)')
+        ].filter(Boolean) as any[]
     };
 
     const bpData = {
@@ -117,7 +140,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             { label: '收縮壓', data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null), borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.5)', spanGaps: true },
             { label: '舒張壓', data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.5)', spanGaps: true },
             { label: '心跳', data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', spanGaps: true, borderDash: [5, 5] },
-        ],
+            createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
+            createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)')
+        ].filter(Boolean) as any[]
     };
 
     const glucoseData = {
@@ -126,7 +151,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             { label: '空腹血糖', data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null), borderColor: 'rgb(255, 159, 64)', backgroundColor: 'rgba(255, 159, 64, 0.5)', spanGaps: true },
             { label: '飯後血糖', data: filteredRecords.map(r => (r.glucosePostMeal ?? 0) > 0 ? r.glucosePostMeal : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', spanGaps: true },
             { label: '臨時血糖', data: filteredRecords.map(r => (r.glucoseRandom ?? 0) > 0 ? r.glucoseRandom : null), borderColor: 'rgb(201, 203, 207)', backgroundColor: 'rgba(201, 203, 207, 0.5)', spanGaps: true },
-        ],
+            createThresholdLine(activeThresholds.fastingHigh, '空腹高標', 'rgba(255, 159, 64, 0.6)'),
+            createThresholdLine(activeThresholds.postMealHigh, '飯後高標', 'rgba(153, 102, 255, 0.6)')
+        ].filter(Boolean) as any[]
     };
 
     const options = {

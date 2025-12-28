@@ -13,7 +13,7 @@
 ### 1. Google Sheets 工作表
 
 #### `HealthRecords`
-id | timestamp | name | weight | systolic | diastolic | heart_rate | glucose_fasting | glucose_post_meal | glucose_random | note | details_json | updated_at
+id | timestamp | name | weight | systolic | diastolic | heart_rate | glucose_fasting | glucose_post_meal | glucose_random | note | weather | note_content | details_json | updated_at
 
 #### `UserSettings` (警示設定存於此)
 | 欄位 | 說明 |
@@ -126,6 +126,7 @@ function doPost(e) {
       if (h === 'glucose_fasting') return record.glucoseFasting;
       if (h === 'glucose_post_meal') return record.glucosePostMeal;
       if (h === 'glucose_random') return record.glucoseRandom;
+      if (h === 'note_content') return record.noteContent;
       return record[h] || '';
     });
     if (rowIndex > 0) {
@@ -190,4 +191,14 @@ npm run dev
 - **紀錄清單優化**：
   - 隱藏數值為 0 的欄位
   - 異常值（超過門檻）以紅色粗體顯示
-- **圖表全螢幕功能**：每個圖表右上角有放大按鈕，進入全螢幕模式並可獨立切換時間範圍
+- **圖表全螢幕功能**：每個圖表右上角有放大按鈕，進入全螢幕模式並可獨立切換時間範圍。
+- **儀表板警示線 (NEW)**：
+  - 體重、血壓、血糖圖表新增個人化「警示門檻線」。
+  - 依據設定自動顯示「高標/低標」虛線，視覺化呈現過高或過低趨勢。
+- **進階備註與天氣紀錄 (NEW)**：
+  - **天氣狀況**：新增「炎熱/舒適/寒冷」天氣紀錄，輔助分析血壓變化。
+  - **詳細備註**：全新備註介面，支援結構化紀錄「飲食狀況」（大餐、斷食等）與「運動紀錄」（項目、時長）。
+- **醫師檢視優化 (NEW)**：
+  - 每日彙整列表新增「天氣圖示」與「備註 Emoji 指示」。
+  - 點擊 Emoji 可開啟浮動視窗查看詳細飲食與運動內容，協助醫師快速掌握病患生活型態。
+- **介面優化**：新增紀錄按鈕置中、優化 RWD 排版。

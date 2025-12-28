@@ -16,7 +16,27 @@ export interface HealthRecord {
     glucosePostMeal?: number;
     glucoseRandom?: number;
     details?: string; // JSON string of GlucoseReading[]
-    note?: string;
+    note?: string; // Legacy simple note
+
+    // New Fields
+    weather?: 'hot' | 'moderate' | 'cold';
+    noteContent?: string; // JSON string of NoteContent
+}
+
+export type WeatherType = 'hot' | 'moderate' | 'cold';
+export type DietType = 'bigMeal' | 'normal' | 'dieting' | 'fasting';
+export type ExerciseType = 'walking' | 'cycling' | 'resistance' | 'other';
+
+export interface ExerciseRecord {
+    type: ExerciseType;
+    durationMinutes?: number;
+    customName?: string; // if type is 'other'
+}
+
+export interface NoteContent {
+    diets?: DietType[];
+    exercises?: ExerciseRecord[];
+    otherNote?: string;
 }
 
 export interface HealthThresholds {

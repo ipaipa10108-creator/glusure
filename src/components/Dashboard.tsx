@@ -70,51 +70,68 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
 
             {/* Controls */}
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center space-y-4 xl:space-y-0 gap-4">
-                <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar items-center">
-                    {ranges.map((range) => (
-                        <button
-                            key={range.value}
-                            onClick={() => setTimeRange(range.value)}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
-                                ? 'bg-white text-teal-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-900'
-                                }`}
-                        >
-                            {range.label}
-                        </button>
-                    ))}
-                    <div className="h-4 w-px bg-gray-300 mx-2" />
-                     <div className="flex items-center px-2">
-                        <span className="text-sm text-gray-500 mr-2 whitespace-nowrap">基準日:</span>
-                        <input
-                            type="date"
-                            value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
-                            onChange={handleDateChange}
-                            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-teal-500 focus:ring-teal-500"
-                        />
-                        {referenceDate && (
+            {/* Controls */}
+            <div className="flex flex-col xl:flex-row items-center gap-4">
+                {/* Left Side: Time Range & Reference Date */}
+                <div className="flex-1 w-full xl:w-auto flex justify-center xl:justify-start">
+                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar items-center">
+                        {ranges.map((range) => (
                             <button
-                                onClick={resetDate}
-                                className="ml-2 text-xs text-teal-600 hover:text-teal-800 underline whitespace-nowrap"
+                                key={range.value}
+                                onClick={() => setTimeRange(range.value)}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
+                                    ? 'bg-white text-teal-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-900'
+                                    }`}
                             >
-                                回今天
+                                {range.label}
                             </button>
-                        )}
+                        ))}
+                        <div className="h-4 w-px bg-gray-300 mx-2" />
+                        <div className="flex items-center px-2">
+                            <span className="text-sm text-gray-500 mr-2 whitespace-nowrap">基準日:</span>
+                            <input
+                                type="date"
+                                value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
+                                onChange={handleDateChange}
+                                className="text-sm border-gray-300 rounded-md shadow-sm focus:border-teal-500 focus:ring-teal-500"
+                            />
+                            {referenceDate && (
+                                <button
+                                    onClick={resetDate}
+                                    className="ml-2 text-xs text-teal-600 hover:text-teal-800 underline whitespace-nowrap"
+                                >
+                                    回今天
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <button
-                    onClick={onAddRecord}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-full shadow-lg text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transform hover:scale-105 transition-all whitespace-nowrap"
-                >
-                    <Plus className="-ml-1 mr-2 h-5 w-5" />
-                    新增紀錄
-                </button>
+                {/* Center: Add Record Button */}
+                <div className="flex-shrink-0 mx-auto">
+                    <button
+                        onClick={onAddRecord}
+                        className="inline-flex items-center px-6 py-3 border border-transparent rounded-full shadow-lg text-base font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transform hover:scale-105 transition-all whitespace-nowrap"
+                    >
+                        <Plus className="-ml-1 mr-2 h-5 w-5" />
+                        新增紀錄
+                    </button>
+                </div>
+
+                {/* Right Side: Spacer to balance layout if needed, or just empty */}
+                <div className="flex-1 hidden xl:block"></div>
             </div>
 
             {/* Charts */}
-            <ChartSection records={records} timeRange={timeRange} onDataClick={onEditRecord} referenceDate={referenceDate || undefined} />
+            {/* Charts */}
+            <ChartSection
+                records={records}
+                timeRange={timeRange}
+                onDataClick={onEditRecord}
+                referenceDate={referenceDate || undefined}
+                thresholds={userSettings?.thresholds}
+            />
         </div>
     );
 };
