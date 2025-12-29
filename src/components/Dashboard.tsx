@@ -12,6 +12,7 @@ interface DashboardProps {
     onAddRecord: () => void;
     onEditRecord: (record: HealthRecord) => void;
     onSaveRecord: (record: HealthRecord) => Promise<void>;
+    onUpdateSettings: (settings: Partial<UserSettings>) => Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -19,7 +20,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     userSettings,
     onAddRecord,
     onEditRecord,
-    onSaveRecord
+    onSaveRecord,
+    onUpdateSettings
 }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('month');
     const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -88,27 +90,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex flex-col xl:flex-row items-center gap-4">
                 {/* Left Side: Time Range & Reference Date */}
                 <div className="flex-1 w-full xl:w-auto flex justify-center xl:justify-start">
-                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar items-center">
-                        {ranges.map((range) => (
-                            <button
-                                key={range.value}
-                                onClick={() => setTimeRange(range.value)}
-                                className={`px - 3 py - 1.5 text - sm font - medium rounded - md whitespace - nowrap transition - all ${timeRange === range.value
+                    <div className="flex flex-wrap sm:flex-nowrap bg-gray-100 p-1 rounded-lg items-center justify-center gap-y-2">
+                        <div className="flex overflow-x-auto max-w-full no-scrollbar items-center">
+                            {ranges.map((range) => (
+                                <button
+                                    key={range.value}
+                                    onClick={() => setTimeRange(range.value)}
+                                    className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
                                         ? 'bg-white text-teal-600 shadow-sm'
                                         : 'text-gray-500 hover:text-gray-900'
-                                    } `}
-                            >
-                                {range.label}
-                            </button>
-                        ))}
-                        <div className="h-4 w-px bg-gray-300 mx-2" />
-                        <div className="flex items-center px-2">
+                                        }`}
+                                >
+                                    {range.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="hidden sm:block h-4 w-px bg-gray-300 mx-2" />
+                        <div className="flex items-center px-2 w-full sm:w-auto justify-center">
                             <span className="text-sm text-gray-500 mr-2 whitespace-nowrap">基準日:</span>
                             <input
                                 type="date"
                                 value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
                                 onChange={handleDateChange}
-                                className="text-sm border-gray-300 rounded-md shadow-sm focus:border-teal-500 focus:ring-teal-500"
+                                className="text-sm border-gray-300 rounded-md shadow-sm focus:border-teal-500 focus:ring-teal-500 w-auto max-w-[130px]"
                             />
                             {referenceDate && (
                                 <button
@@ -139,26 +143,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         💪 運動
                     </button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 ml-2">
                         <button
-                            onClick={() => setShowThresholds(!showThresholds)}
-                            className={`inline - flex items - center px - 3 py - 2 border rounded - full text - xs font - medium shadow - sm transition - all whitespace - nowrap ${showThresholds
-                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                                } `}
-                            title={showThresholds ? "隱藏警示線" : "顯示警示線"}
+                            onClick={() => {
+                                const newValue = !showThresholds;
+                                setShowThresholds(newValue);
+                                onUpdateSettings({ showAlertLines: newValue });
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${showThresholds ? 'bg-white border-teal-200 shadow-sm' : 'bg-gray-50 border-gray-200 opacity-75'}`}
+                            title="顯示異常警示線"
                         >
-                            警示線: {showThresholds ? 'ON' : 'OFF'}
+                            <div className={`w-2.5 h-2.5 rounded-full transition-colors shadow-sm ${showThresholds ? 'bg-green-500 shadow-green-400/50' : 'bg-gray-300'}`} />
+                            <span className="text-sm text-gray-600 font-medium">警示線</span>
                         </button>
                         <button
-                            onClick={() => setShowAuxiliaryLines(!showAuxiliaryLines)}
-                            className={`inline - flex items - center px - 3 py - 2 border rounded - full text - xs font - medium shadow - sm transition - all whitespace - nowrap ${showAuxiliaryLines
-                                    ? 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100'
-                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                                } `}
-                            title={showAuxiliaryLines ? "隱藏輔助視覺" : "顯示輔助視覺"}
+                            onClick={() => {
+                                const newValue = !showAuxiliaryLines;
+                                setShowAuxiliaryLines(newValue);
+                                onUpdateSettings({ showAuxiliaryLines: newValue });
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${showAuxiliaryLines ? 'bg-white border-teal-200 shadow-sm' : 'bg-gray-50 border-gray-200 opacity-75'}`}
+                            title="顯示輔助對照線"
                         >
-                            輔助線: {showAuxiliaryLines ? 'ON' : 'OFF'}
+                            <div className={`w-2.5 h-2.5 rounded-full transition-colors shadow-sm ${showAuxiliaryLines ? 'bg-green-500 shadow-green-400/50' : 'bg-gray-300'}`} />
+                            <span className="text-sm text-gray-600 font-medium">輔助線</span>
                         </button>
                     </div>
                 </div>

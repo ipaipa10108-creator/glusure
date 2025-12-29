@@ -121,6 +121,13 @@ function App() {
         }
     };
 
+    const handleUpdateSettings = async (settings: Partial<UserSettings>) => {
+        if (!user) return;
+        const updatedUser = { ...user, ...settings };
+        setUser(updatedUser);
+        localStorage.setItem('glusure_user_full', JSON.stringify(updatedUser));
+    };
+
     if (isAppLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-teal-500 text-white">
@@ -179,6 +186,7 @@ function App() {
                         }}
                         onEditRecord={handleEditRecord}
                         onSaveRecord={handleSubmitRecord}
+                        onUpdateSettings={handleUpdateSettings}
                     />
                 )}
 
