@@ -136,38 +136,90 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         };
     };
 
-    // --- Weight Chart Logic ---
-    const weightYMax = Math.max(...filteredRecords.map(r => r.weight || 0), activeThresholds.weightHigh || 70) + 5;
-    const weightPointColors = filteredRecords.map(r => {
-        // If has other note, use custom color or default green
-        if (r.noteContent) {
+    // --- Cross-record otherNote color mapping ---
+    // 找出所有有 otherNote 的紀錄
+    const recordsWithOtherNote = filteredRecords
+        .map((r, idx) => {
+            if (!r.noteContent) return null;
             try {
                 const n = JSON.parse(r.noteContent);
-                if (n.otherNote) return n.otherNoteColor || '#10B981'; // Default Green
-            } catch (e) { }
-        }
-        return 'rgb(53, 162, 235)'; // Default Blue
+                if (n.otherNote) {
+                    return { idx, timestamp: new Date(r.timestamp).getTime(), color: n.otherNoteColor || '#10B981' };
+                }
+            } catch { }
+            return null;
+        })
+        .filter((x): x is { idx: number; timestamp: number; color: string } => x !== null);
+
+    // 建立索引集合：哪些索引應該變色（針對體重、心跳、血糖分開處理）
+    const weightColorMap = new Map<number, string>(); // index -> color
+    const hrColorMap = new Map<number, string>();
+    const glucoseColorMap = new Map<number, string>();
+
+    for (const note of recordsWithOtherNote) {
+        const maxDiffMs = 24 * 60 * 60 * 1000;
+
+        // 找最接近的有體重資料的紀錄
+        let nearestWeightIdx = -1;
+        let minWeightDiff = Infinity;
+        filteredRecords.forEach((r, i) => {
+            if ((r.weight ?? 0) > 0) {
+                const diff = Math.abs(new Date(r.timestamp).getTime() - note.timestamp);
+                if (diff < minWeightDiff && diff <= maxDiffMs) {
+                    minWeightDiff = diff;
+                    nearestWeightIdx = i;
+                }
+            }
+        });
+        if (nearestWeightIdx >= 0) weightColorMap.set(nearestWeightIdx, note.color);
+
+        // 找最接近的有心跳資料的紀錄
+        let nearestHrIdx = -1;
+        let minHrDiff = Infinity;
+        filteredRecords.forEach((r, i) => {
+            if ((r.heartRate ?? 0) > 0) {
+                const diff = Math.abs(new Date(r.timestamp).getTime() - note.timestamp);
+                if (diff < minHrDiff && diff <= maxDiffMs) {
+                    minHrDiff = diff;
+                    nearestHrIdx = i;
+                }
+            }
+        });
+        if (nearestHrIdx >= 0) hrColorMap.set(nearestHrIdx, note.color);
+
+        // 找最接近的有血糖資料的紀錄 (空腹或飯後皆可)
+        let nearestGlucoseIdx = -1;
+        let minGlucoseDiff = Infinity;
+        filteredRecords.forEach((r, i) => {
+            const hasGlucose = (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0;
+            if (hasGlucose) {
+                const diff = Math.abs(new Date(r.timestamp).getTime() - note.timestamp);
+                if (diff < minGlucoseDiff && diff <= maxDiffMs) {
+                    minGlucoseDiff = diff;
+                    nearestGlucoseIdx = i;
+                }
+            }
+        });
+        if (nearestGlucoseIdx >= 0) glucoseColorMap.set(nearestGlucoseIdx, note.color);
+    }
+
+    // --- Weight Chart Logic ---
+    const weightYMax = Math.max(...filteredRecords.map(r => r.weight || 0), activeThresholds.weightHigh || 70) + 5;
+    const weightPointColors = filteredRecords.map((r, i) => {
+        if ((r.weight ?? 0) <= 0) return 'rgb(53, 162, 235)';
+        return weightColorMap.get(i) || 'rgb(53, 162, 235)';
     });
-    const weightPointRadii = filteredRecords.map(r => {
-        if (r.noteContent && r.noteContent.includes('otherNote')) return 6; // Larger for notes
-        return 4;
+    const weightPointRadii = filteredRecords.map((r, i) => {
+        if ((r.weight ?? 0) <= 0) return 4;
+        return weightColorMap.has(i) ? 6 : 4;
     });
 
     const weightData = {
         labels,
         datasets: [
-            // Auxiliary Lines
-            createAuxBar('阻力訓練', 'rgba(239, 68, 68, 0.5)', (r) => {
-                // Check if resistant exercise exists
-                return r.noteContent ? r.noteContent.includes('"type":"resistance"') : false;
-            }, weightYMax),
-            createAuxBar('腳踏車', 'rgba(249, 115, 22, 0.5)', (r) => {
-                return r.noteContent ? r.noteContent.includes('"type":"cycling"') : false;
-            }, weightYMax),
-            createAuxBar('健走/其他', 'rgba(16, 185, 129, 0.5)', (r) => {
-                return r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false;
-            }, weightYMax),
-            // Main Line
+            createAuxBar('阻力訓練', 'rgba(239, 68, 68, 0.5)', (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax),
+            createAuxBar('腳踏車', 'rgba(249, 115, 22, 0.5)', (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax),
+            createAuxBar('健走/其他', 'rgba(16, 185, 129, 0.5)', (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax),
             {
                 label: '體重 (kg)',
                 data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
@@ -186,55 +238,21 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         ].filter(Boolean) as any[]
     };
 
-    // --- Cross-record otherNote color mapping ---
-    // 找出所有有 otherNote 的紀錄
-    const recordsWithOtherNote = filteredRecords.filter(r => {
-        if (!r.noteContent) return false;
-        try {
-            const n = JSON.parse(r.noteContent);
-            return !!n.otherNote;
-        } catch { return false; }
-    }).map(r => {
-        const n = JSON.parse(r.noteContent!);
-        return { timestamp: new Date(r.timestamp).getTime(), color: n.otherNoteColor || '#10B981' };
-    });
-
-    // Helper: 找最接近時間的 otherNote 顏色 (在範圍內，例如 24 小時)
-    const findNearestNoteColor = (recordTimestamp: string, maxDiffMs = 24 * 60 * 60 * 1000): string | null => {
-        const ts = new Date(recordTimestamp).getTime();
-        let nearestColor: string | null = null;
-        let minDiff = Infinity;
-        for (const note of recordsWithOtherNote) {
-            const diff = Math.abs(ts - note.timestamp);
-            if (diff < minDiff && diff <= maxDiffMs) {
-                minDiff = diff;
-                nearestColor = note.color;
-            }
-        }
-        return nearestColor;
-    };
-
     // --- BP Chart Logic ---
     const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
-    // For BP, color heart rate points based on nearest otherNote
-    const hrPointColors = filteredRecords.map(r => {
-        // 只有有心跳資料的點才需要顏色
+    const hrPointColors = filteredRecords.map((r, i) => {
         if ((r.heartRate ?? 0) <= 0) return 'rgb(153, 102, 255)';
-        const noteColor = findNearestNoteColor(r.timestamp);
-        return noteColor || 'rgb(153, 102, 255)'; // Default purple
+        return hrColorMap.get(i) || 'rgb(153, 102, 255)';
     });
-    const hrPointRadii = filteredRecords.map(r => {
+    const hrPointRadii = filteredRecords.map((r, i) => {
         if ((r.heartRate ?? 0) <= 0) return 4;
-        const noteColor = findNearestNoteColor(r.timestamp);
-        return noteColor ? 6 : 4;
+        return hrColorMap.has(i) ? 6 : 4;
     });
     const bpData = {
         labels,
         datasets: [
-            // Auxiliary Lines (Weather)
             createAuxBar('天氣(熱)', 'rgba(239, 68, 68, 0.3)', (r) => r.weather === 'hot', bpYMax),
             createAuxBar('天氣(冷)', 'rgba(59, 130, 246, 0.3)', (r) => r.weather === 'cold', bpYMax),
-
             { label: '收縮壓', data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null), borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.5)', spanGaps: true, type: 'line', order: 1 },
             { label: '舒張壓', data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.5)', spanGaps: true, type: 'line', order: 1 },
             { label: '心跳', data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', pointBackgroundColor: hrPointColors, pointRadius: hrPointRadii, spanGaps: true, borderDash: [5, 5], type: 'line', order: 1 },
@@ -245,37 +263,30 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- Glucose Chart Logic ---
     const glucoseYMax = Math.max(...filteredRecords.map(r => Math.max(r.glucoseFasting || 0, r.glucosePostMeal || 0, r.glucoseRandom || 0)), 200) + 20;
-    // For Glucose, color each glucose data point based on nearest otherNote
-    const glucoseFastingColors = filteredRecords.map(r => {
+    const glucoseFastingColors = filteredRecords.map((r, i) => {
         if ((r.glucoseFasting ?? 0) <= 0) return 'rgb(255, 159, 64)';
-        const noteColor = findNearestNoteColor(r.timestamp);
-        return noteColor || 'rgb(255, 159, 64)';
+        return glucoseColorMap.get(i) || 'rgb(255, 159, 64)';
     });
-    const glucosePostMealColors = filteredRecords.map(r => {
+    const glucosePostMealColors = filteredRecords.map((r, i) => {
         if ((r.glucosePostMeal ?? 0) <= 0) return 'rgb(153, 102, 255)';
-        const noteColor = findNearestNoteColor(r.timestamp);
-        return noteColor || 'rgb(153, 102, 255)';
+        return glucoseColorMap.get(i) || 'rgb(153, 102, 255)';
     });
-    const glucoseRandomColors = filteredRecords.map(r => {
+    const glucoseRandomColors = filteredRecords.map((r, i) => {
         if ((r.glucoseRandom ?? 0) <= 0) return 'rgb(201, 203, 207)';
-        const noteColor = findNearestNoteColor(r.timestamp);
-        return noteColor || 'rgb(201, 203, 207)';
+        return glucoseColorMap.get(i) || 'rgb(201, 203, 207)';
     });
-    const glucosePointRadii = filteredRecords.map(r => {
+    const glucosePointRadii = filteredRecords.map((r, i) => {
         const hasGlucose = (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0;
         if (!hasGlucose) return 4;
-        const noteColor = findNearestNoteColor(r.timestamp);
-        return noteColor ? 6 : 4;
+        return glucoseColorMap.has(i) ? 6 : 4;
     });
 
     const glucoseData = {
         labels,
         datasets: [
-            // Auxiliary Lines (Diet)
             createAuxBar('大餐', 'rgba(239, 68, 68, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax),
             createAuxBar('節食', 'rgba(16, 185, 129, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax),
             createAuxBar('斷食', 'rgba(139, 92, 246, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax),
-
             { label: '空腹血糖', data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null), borderColor: 'rgb(255, 159, 64)', backgroundColor: 'rgba(255, 159, 64, 0.5)', pointBackgroundColor: glucoseFastingColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
             { label: '飯後血糖', data: filteredRecords.map(r => (r.glucosePostMeal ?? 0) > 0 ? r.glucosePostMeal : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', pointBackgroundColor: glucosePostMealColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
             { label: '臨時血糖', data: filteredRecords.map(r => (r.glucoseRandom ?? 0) > 0 ? r.glucoseRandom : null), borderColor: 'rgb(201, 203, 207)', backgroundColor: 'rgba(201, 203, 207, 0.5)', pointBackgroundColor: glucoseRandomColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
