@@ -188,6 +188,20 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- BP Chart Logic ---
     const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
+    // For BP, color heart rate points based on otherNote
+    const hrPointColors = filteredRecords.map(r => {
+        if (r.noteContent) {
+            try {
+                const n = JSON.parse(r.noteContent);
+                if (n.otherNote) return n.otherNoteColor || '#10B981';
+            } catch (e) { }
+        }
+        return 'rgb(153, 102, 255)'; // Default purple
+    });
+    const hrPointRadii = filteredRecords.map(r => {
+        if (r.noteContent && r.noteContent.includes('otherNote')) return 6;
+        return 4;
+    });
     const bpData = {
         labels,
         datasets: [
@@ -197,7 +211,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
             { label: '收縮壓', data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null), borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.5)', spanGaps: true, type: 'line', order: 1 },
             { label: '舒張壓', data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.5)', spanGaps: true, type: 'line', order: 1 },
-            { label: '心跳', data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', spanGaps: true, borderDash: [5, 5], type: 'line', order: 1 },
+            { label: '心跳', data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', pointBackgroundColor: hrPointColors, pointRadius: hrPointRadii, spanGaps: true, borderDash: [5, 5], type: 'line', order: 1 },
             createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
             createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)')
         ].filter(Boolean) as any[]
@@ -205,6 +219,25 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- Glucose Chart Logic ---
     const glucoseYMax = Math.max(...filteredRecords.map(r => Math.max(r.glucoseFasting || 0, r.glucosePostMeal || 0, r.glucoseRandom || 0)), 200) + 20;
+    // For Glucose, color each glucose data point based on otherNote
+    const glucosePointColors = filteredRecords.map(r => {
+        if (r.noteContent) {
+            try {
+                const n = JSON.parse(r.noteContent);
+                if (n.otherNote) return n.otherNoteColor || '#10B981';
+            } catch (e) { }
+        }
+        return null; // Will use default line color
+    });
+    const glucosePointRadii = filteredRecords.map(r => {
+        if (r.noteContent && r.noteContent.includes('otherNote')) return 6;
+        return 4;
+    });
+    // Helper to create point colors array for glucose lines
+    const glucoseFastingColors = filteredRecords.map((_, i) => glucosePointColors[i] || 'rgb(255, 159, 64)');
+    const glucosePostMealColors = filteredRecords.map((_, i) => glucosePointColors[i] || 'rgb(153, 102, 255)');
+    const glucoseRandomColors = filteredRecords.map((_, i) => glucosePointColors[i] || 'rgb(201, 203, 207)');
+
     const glucoseData = {
         labels,
         datasets: [
@@ -213,9 +246,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             createAuxBar('節食', 'rgba(16, 185, 129, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax),
             createAuxBar('斷食', 'rgba(139, 92, 246, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax),
 
-            { label: '空腹血糖', data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null), borderColor: 'rgb(255, 159, 64)', backgroundColor: 'rgba(255, 159, 64, 0.5)', spanGaps: true, type: 'line', order: 1 },
-            { label: '飯後血糖', data: filteredRecords.map(r => (r.glucosePostMeal ?? 0) > 0 ? r.glucosePostMeal : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', spanGaps: true, type: 'line', order: 1 },
-            { label: '臨時血糖', data: filteredRecords.map(r => (r.glucoseRandom ?? 0) > 0 ? r.glucoseRandom : null), borderColor: 'rgb(201, 203, 207)', backgroundColor: 'rgba(201, 203, 207, 0.5)', spanGaps: true, type: 'line', order: 1 },
+            { label: '空腹血糖', data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null), borderColor: 'rgb(255, 159, 64)', backgroundColor: 'rgba(255, 159, 64, 0.5)', pointBackgroundColor: glucoseFastingColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
+            { label: '飯後血糖', data: filteredRecords.map(r => (r.glucosePostMeal ?? 0) > 0 ? r.glucosePostMeal : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', pointBackgroundColor: glucosePostMealColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
+            { label: '臨時血糖', data: filteredRecords.map(r => (r.glucoseRandom ?? 0) > 0 ? r.glucoseRandom : null), borderColor: 'rgb(201, 203, 207)', backgroundColor: 'rgba(201, 203, 207, 0.5)', pointBackgroundColor: glucoseRandomColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
             createThresholdLine(activeThresholds.fastingHigh, '空腹高標', 'rgba(255, 159, 64, 0.6)'),
             createThresholdLine(activeThresholds.postMealHigh, '飯後高標', 'rgba(153, 102, 255, 0.6)')
         ].filter(Boolean) as any[]
