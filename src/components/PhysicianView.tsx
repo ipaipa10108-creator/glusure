@@ -17,9 +17,10 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
     const thresholds = userSettings.thresholds || DEFAULT_THRESHOLDS;
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
+    const [referenceDate, setReferenceDate] = useState<Date | null>(null);
 
     const groupedRecords = useMemo(() => {
-        const now = new Date();
+        const now = referenceDate ? new Date(new Date(referenceDate).setHours(23, 59, 59, 999)) : new Date();
         let startDate: Date;
 
         switch (timeRange) {
@@ -32,7 +33,10 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
             case 'all': default: startDate = new Date(0); break;
         }
 
-        const filtered = records.filter(r => isAfter(parseISO(r.timestamp), startDate));
+        const filtered = records.filter(r => {
+            const rDate = parseISO(r.timestamp);
+            return isAfter(rDate, startDate) && (referenceDate ? rDate <= now : true);
+        });
 
         // Group by Day
         const groups: { [key: string]: HealthRecord[] } = {};
@@ -55,7 +59,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
             const timeB = new Date(b.date).getTime();
             return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
         });
-    }, [records, sortOrder, timeRange]);
+    }, [records, sortOrder, timeRange, referenceDate]);
 
     // Helper to find weight difference from previous day (alert shows on the NEW day)
     const getPreviousDayWeightDiff = (currentDateStr: string, currentDayRecords: HealthRecord[]) => {
@@ -211,19 +215,29 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
 
     const [viewMode, setViewMode] = useState<'simple' | 'detailed'>('simple');
 
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value) {
+            setReferenceDate(new Date(e.target.value));
+        } else {
+            setReferenceDate(null);
+        }
+    };
+
+    const resetDate = () => setReferenceDate(null);
+
     return (
         <div className="bg-white shadow rounded-lg overflow-hidden">
             {/* Header / Filter */}
-            <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex flex-col xl:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4 w-full xl:w-auto">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center whitespace-nowrap">
                         <Activity className="h-5 w-5 text-teal-500 mr-2" />
                         醫師檢視模式 (每日彙整)
                     </h3>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto justify-end">
+                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar items-center">
                         {ranges.map((range) => (
                             <button
                                 key={range.value}
@@ -236,24 +250,45 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                 {range.label}
                             </button>
                         ))}
+                        <div className="h-4 w-px bg-gray-300 mx-2" />
+                        <div className="flex items-center px-1">
+                            <span className="text-xs text-gray-500 mr-1 whitespace-nowrap">基準日:</span>
+                            <input
+                                type="date"
+                                value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
+                                onChange={handleDateChange}
+                                className="text-xs border-transparent bg-transparent focus:border-transparent focus:ring-0 p-0 text-gray-700 w-24"
+                            />
+                            {referenceDate && (
+                                <button
+                                    onClick={resetDate}
+                                    className="ml-1 text-xs text-teal-600 hover:text-teal-800 underline whitespace-nowrap"
+                                >
+                                    回今天
+                                </button>
+                            )}
+                        </div>
                     </div>
-                    <button
-                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                        className="p-2 text-gray-500 hover:text-teal-600 bg-gray-50 hover:bg-teal-50 rounded-lg transition-colors"
-                        title={sortOrder === 'asc' ? "日期：舊→新" : "日期：新→舊"}
-                    >
-                        {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                    </button>
-                    <button
-                        onClick={() => setViewMode(prev => prev === 'simple' ? 'detailed' : 'simple')}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${viewMode === 'detailed'
-                            ? 'bg-teal-50 border-teal-200 text-teal-700'
-                            : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
-                            }`}
-                        title="切換顯示模式"
-                    >
-                        {viewMode === 'simple' ? '簡易' : '詳細'}
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                            className="p-2 text-gray-500 hover:text-teal-600 bg-gray-50 hover:bg-teal-50 rounded-lg transition-colors border border-gray-200"
+                            title={sortOrder === 'asc' ? "日期：舊→新" : "日期：新→舊"}
+                        >
+                            {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                        </button>
+                        <button
+                            onClick={() => setViewMode(prev => prev === 'simple' ? 'detailed' : 'simple')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${viewMode === 'detailed'
+                                ? 'bg-teal-50 border-teal-200 text-teal-700'
+                                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            title="切換顯示模式"
+                        >
+                            {viewMode === 'simple' ? '簡易' : '詳細'}
+                        </button>
+                    </div>
                 </div>
             </div>
 

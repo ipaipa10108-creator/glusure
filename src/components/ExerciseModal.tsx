@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ExerciseRecord, HealthRecord, NoteContent } from '../types';
 import { X, Clock, Dumbbell, Bike, Footprints, ClipboardList } from 'lucide-react';
 import clsx from 'clsx';
+import { format } from 'date-fns';
 
 interface ExerciseModalProps {
     isOpen: boolean;
@@ -11,7 +12,7 @@ interface ExerciseModalProps {
 }
 
 export const ExerciseModal: React.FC<ExerciseModalProps> = ({ isOpen, onClose, onSave, userName }) => {
-    const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 16));
+    const [date, setDate] = useState<string>(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
     const [duration, setDuration] = useState<number | ''>('');
     const [selectedType, setSelectedType] = useState<string | null>(null);
     const [customName, setCustomName] = useState('');

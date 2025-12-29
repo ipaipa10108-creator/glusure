@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { HealthRecord, TimeRange, DEFAULT_THRESHOLDS, HealthThresholds } from '../types';
 import { format, parseISO, subMonths, subYears, isAfter } from 'date-fns';
-import { Edit2, Trash2, Activity } from 'lucide-react';
+import { Edit2, Trash2, Activity, ArrowUp, ArrowDown } from 'lucide-react';
 import clsx from 'clsx';
 
 interface RecordListProps {
@@ -147,7 +147,7 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
                             className="p-1.5 text-gray-500 hover:text-teal-600 bg-gray-50 hover:bg-teal-50 border border-gray-200 rounded-lg transition-colors flex items-center gap-1"
                             title={sortOrder === 'desc' ? "目前：新→舊" : "目前：舊→新"}
                         >
-                            <span className="text-xs font-medium">{sortOrder === 'desc' ? '新→舊' : '舊→新'}</span>
+                            {sortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
                         </button>
                     </div>
                 </div>

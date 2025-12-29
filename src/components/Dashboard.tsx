@@ -3,7 +3,7 @@ import { HealthRecord, TimeRange, UserSettings } from '../types';
 import { ChartSection } from './ChartSection';
 import { isWeightAbnormal } from '../utils/helpers';
 import { DEFAULT_THRESHOLDS } from '../types';
-import { AlertCircle, Plus, Dumbbell } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { ExerciseModal } from './ExerciseModal';
 
 interface DashboardProps {
@@ -55,8 +55,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         { value: 'all', label: '全部' },
     ];
 
-    const [showThresholds, setShowThresholds] = useState<boolean>(true);
-    const [showAuxiliaryLines, setShowAuxiliaryLines] = useState<boolean>(true);
+    const [showThresholds, setShowThresholds] = useState<boolean>(false);
+    const [showAuxiliaryLines, setShowAuxiliaryLines] = useState<boolean>(false);
 
     // Initialize from user settings
     React.useEffect(() => {
@@ -93,10 +93,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             <button
                                 key={range.value}
                                 onClick={() => setTimeRange(range.value)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
-                                    ? 'bg-white text-teal-600 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-900'
-                                    }`}
+                                className={`px - 3 py - 1.5 text - sm font - medium rounded - md whitespace - nowrap transition - all ${timeRange === range.value
+                                        ? 'bg-white text-teal-600 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                    } `}
                             >
                                 {range.label}
                             </button>
@@ -128,35 +128,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         onClick={onAddRecord}
                         className="inline-flex items-center px-6 py-3 border border-transparent rounded-full shadow-lg text-base font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transform hover:scale-105 transition-all whitespace-nowrap"
                     >
-                        <Plus className="-ml-1 mr-2 h-5 w-5" />
-                        新增紀錄
+                        ➕ 紀錄
                     </button>
 
                     <button
                         onClick={() => setIsExerciseModalOpen(true)}
-                        className="inline-flex items-center p-3 border border-transparent rounded-full shadow-lg text-white bg-indigo-500 hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-105 transition-all"
+                        className="inline-flex items-center px-5 py-3 border border-transparent rounded-full shadow-lg text-base font-medium text-white bg-indigo-500 hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-105 transition-all whitespace-nowrap"
                         title="新增運動紀錄"
                     >
-                        <Dumbbell className="h-5 w-5" />
+                        💪 運動
                     </button>
 
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowThresholds(!showThresholds)}
-                            className={`inline-flex items-center px-3 py-2 border rounded-full text-xs font-medium shadow-sm transition-all whitespace-nowrap ${showThresholds
-                                ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                                }`}
+                            className={`inline - flex items - center px - 3 py - 2 border rounded - full text - xs font - medium shadow - sm transition - all whitespace - nowrap ${showThresholds
+                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                } `}
                             title={showThresholds ? "隱藏警示線" : "顯示警示線"}
                         >
                             警示線: {showThresholds ? 'ON' : 'OFF'}
                         </button>
                         <button
                             onClick={() => setShowAuxiliaryLines(!showAuxiliaryLines)}
-                            className={`inline-flex items-center px-3 py-2 border rounded-full text-xs font-medium shadow-sm transition-all whitespace-nowrap ${showAuxiliaryLines
-                                ? 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100'
-                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                                }`}
+                            className={`inline - flex items - center px - 3 py - 2 border rounded - full text - xs font - medium shadow - sm transition - all whitespace - nowrap ${showAuxiliaryLines
+                                    ? 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100'
+                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                } `}
                             title={showAuxiliaryLines ? "隱藏輔助視覺" : "顯示輔助視覺"}
                         >
                             輔助線: {showAuxiliaryLines ? 'ON' : 'OFF'}
