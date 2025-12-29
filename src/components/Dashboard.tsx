@@ -3,22 +3,26 @@ import { HealthRecord, TimeRange, UserSettings } from '../types';
 import { ChartSection } from './ChartSection';
 import { isWeightAbnormal } from '../utils/helpers';
 import { DEFAULT_THRESHOLDS } from '../types';
-import { AlertCircle, Plus } from 'lucide-react';
+import { AlertCircle, Plus, Dumbbell } from 'lucide-react';
+import { ExerciseModal } from './ExerciseModal';
 
 interface DashboardProps {
     records: HealthRecord[];
     userSettings: UserSettings | null;
     onAddRecord: () => void;
     onEditRecord: (record: HealthRecord) => void;
+    onSaveRecord: (record: HealthRecord) => Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
     records,
     userSettings,
     onAddRecord,
-    onEditRecord
+    onEditRecord,
+    onSaveRecord
 }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('month');
+    const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
 
     // Check for alerts
     const thresholds = userSettings?.thresholds || DEFAULT_THRESHOLDS;
@@ -118,7 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                 </div>
 
-                {/* Center: Add Record Button */}
+                {/* Center: Add Record Buttons */}
                 <div className="flex-shrink-0 mx-auto flex items-center gap-2 sm:gap-4 flex-wrap justify-center">
                     <button
                         onClick={onAddRecord}
@@ -127,6 +131,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <Plus className="-ml-1 mr-2 h-5 w-5" />
                         新增紀錄
                     </button>
+
+                    <button
+                        onClick={() => setIsExerciseModalOpen(true)}
+                        className="inline-flex items-center p-3 border border-transparent rounded-full shadow-lg text-white bg-indigo-500 hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-105 transition-all"
+                        title="新增運動紀錄"
+                    >
+                        <Dumbbell className="h-5 w-5" />
+                    </button>
+
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowThresholds(!showThresholds)}
@@ -164,6 +177,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 thresholds={userSettings?.thresholds}
                 showThresholds={showThresholds}
                 showAuxiliaryLines={showAuxiliaryLines}
+            />
+
+            {/* Exercise Modal */}
+            <ExerciseModal
+                isOpen={isExerciseModalOpen}
+                onClose={() => setIsExerciseModalOpen(false)}
+                onSave={onSaveRecord}
+                userName={userSettings?.name || ''}
             />
         </div>
     );

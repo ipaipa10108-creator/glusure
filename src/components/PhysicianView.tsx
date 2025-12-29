@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { HealthRecord, GlucoseReading, TimeRange, UserSettings } from '../types';
-import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, isAfter, addDays, isSameDay } from 'date-fns';
+import { format, parseISO, differenceInMinutes, subDays, subMonths, subYears, isAfter, addDays, isSameDay, startOfDay } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { getGlucoseStatus } from '../utils/helpers';
 import clsx from 'clsx';
@@ -23,12 +23,12 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
         let startDate: Date;
 
         switch (timeRange) {
-            case 'week': startDate = subDays(now, 7); break;
-            case '2week': startDate = subDays(now, 14); break;
-            case 'month': startDate = subMonths(now, 1); break;
-            case 'quarter': startDate = subMonths(now, 3); break;
-            case 'halfYear': startDate = subMonths(now, 6); break;
-            case 'year': startDate = subYears(now, 1); break;
+            case 'week': startDate = startOfDay(subDays(now, 7)); break;
+            case '2week': startDate = startOfDay(subDays(now, 14)); break;
+            case 'month': startDate = startOfDay(subMonths(now, 1)); break;
+            case 'quarter': startDate = startOfDay(subMonths(now, 3)); break;
+            case 'halfYear': startDate = startOfDay(subMonths(now, 6)); break;
+            case 'year': startDate = startOfDay(subYears(now, 1)); break;
             case 'all': default: startDate = new Date(0); break;
         }
 

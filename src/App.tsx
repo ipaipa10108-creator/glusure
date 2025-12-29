@@ -178,6 +178,7 @@ function App() {
                             setIsFormOpen(true);
                         }}
                         onEditRecord={handleEditRecord}
+                        onSaveRecord={handleSubmitRecord}
                     />
                 )}
 
