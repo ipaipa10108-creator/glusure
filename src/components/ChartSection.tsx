@@ -186,21 +186,47 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         ].filter(Boolean) as any[]
     };
 
+    // --- Cross-record otherNote color mapping ---
+    // 找出所有有 otherNote 的紀錄
+    const recordsWithOtherNote = filteredRecords.filter(r => {
+        if (!r.noteContent) return false;
+        try {
+            const n = JSON.parse(r.noteContent);
+            return !!n.otherNote;
+        } catch { return false; }
+    }).map(r => {
+        const n = JSON.parse(r.noteContent!);
+        return { timestamp: new Date(r.timestamp).getTime(), color: n.otherNoteColor || '#10B981' };
+    });
+
+    // Helper: 找最接近時間的 otherNote 顏色 (在範圍內，例如 24 小時)
+    const findNearestNoteColor = (recordTimestamp: string, maxDiffMs = 24 * 60 * 60 * 1000): string | null => {
+        const ts = new Date(recordTimestamp).getTime();
+        let nearestColor: string | null = null;
+        let minDiff = Infinity;
+        for (const note of recordsWithOtherNote) {
+            const diff = Math.abs(ts - note.timestamp);
+            if (diff < minDiff && diff <= maxDiffMs) {
+                minDiff = diff;
+                nearestColor = note.color;
+            }
+        }
+        return nearestColor;
+    };
+
     // --- BP Chart Logic ---
     const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
-    // For BP, color heart rate points based on otherNote
+    // For BP, color heart rate points based on nearest otherNote
     const hrPointColors = filteredRecords.map(r => {
-        if (r.noteContent) {
-            try {
-                const n = JSON.parse(r.noteContent);
-                if (n.otherNote) return n.otherNoteColor || '#10B981';
-            } catch (e) { }
-        }
-        return 'rgb(153, 102, 255)'; // Default purple
+        // 只有有心跳資料的點才需要顏色
+        if ((r.heartRate ?? 0) <= 0) return 'rgb(153, 102, 255)';
+        const noteColor = findNearestNoteColor(r.timestamp);
+        return noteColor || 'rgb(153, 102, 255)'; // Default purple
     });
     const hrPointRadii = filteredRecords.map(r => {
-        if (r.noteContent && r.noteContent.includes('otherNote')) return 6;
-        return 4;
+        if ((r.heartRate ?? 0) <= 0) return 4;
+        const noteColor = findNearestNoteColor(r.timestamp);
+        return noteColor ? 6 : 4;
     });
     const bpData = {
         labels,
@@ -219,24 +245,28 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- Glucose Chart Logic ---
     const glucoseYMax = Math.max(...filteredRecords.map(r => Math.max(r.glucoseFasting || 0, r.glucosePostMeal || 0, r.glucoseRandom || 0)), 200) + 20;
-    // For Glucose, color each glucose data point based on otherNote
-    const glucosePointColors = filteredRecords.map(r => {
-        if (r.noteContent) {
-            try {
-                const n = JSON.parse(r.noteContent);
-                if (n.otherNote) return n.otherNoteColor || '#10B981';
-            } catch (e) { }
-        }
-        return null; // Will use default line color
+    // For Glucose, color each glucose data point based on nearest otherNote
+    const glucoseFastingColors = filteredRecords.map(r => {
+        if ((r.glucoseFasting ?? 0) <= 0) return 'rgb(255, 159, 64)';
+        const noteColor = findNearestNoteColor(r.timestamp);
+        return noteColor || 'rgb(255, 159, 64)';
+    });
+    const glucosePostMealColors = filteredRecords.map(r => {
+        if ((r.glucosePostMeal ?? 0) <= 0) return 'rgb(153, 102, 255)';
+        const noteColor = findNearestNoteColor(r.timestamp);
+        return noteColor || 'rgb(153, 102, 255)';
+    });
+    const glucoseRandomColors = filteredRecords.map(r => {
+        if ((r.glucoseRandom ?? 0) <= 0) return 'rgb(201, 203, 207)';
+        const noteColor = findNearestNoteColor(r.timestamp);
+        return noteColor || 'rgb(201, 203, 207)';
     });
     const glucosePointRadii = filteredRecords.map(r => {
-        if (r.noteContent && r.noteContent.includes('otherNote')) return 6;
-        return 4;
+        const hasGlucose = (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0;
+        if (!hasGlucose) return 4;
+        const noteColor = findNearestNoteColor(r.timestamp);
+        return noteColor ? 6 : 4;
     });
-    // Helper to create point colors array for glucose lines
-    const glucoseFastingColors = filteredRecords.map((_, i) => glucosePointColors[i] || 'rgb(255, 159, 64)');
-    const glucosePostMealColors = filteredRecords.map((_, i) => glucosePointColors[i] || 'rgb(153, 102, 255)');
-    const glucoseRandomColors = filteredRecords.map((_, i) => glucosePointColors[i] || 'rgb(201, 203, 207)');
 
     const glucoseData = {
         labels,
