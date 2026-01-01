@@ -124,19 +124,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     const activeThresholds = thresholds || { weightHigh: 0, weightLow: 0, systolicHigh: 140, diastolicHigh: 90, fastingHigh: 100, postMealHigh: 140 };
 
-    // Helper to create auxiliary line datasets (Vertical Bars)
-    const createAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number) => {
-        if (!showAuxiliaryLines) return null;
-        return {
-            label: label,
-            data: filteredRecords.map(r => condition(r) ? yMax : null),
-            backgroundColor: color,
-            type: 'bar',
-            barThickness: 2,
-            order: 1000 // Render behind lines
-        };
-    };
-
     // --- Cross-record otherNote color mapping ---
     // 找出所有有 otherNote 的紀錄
     const recordsWithOtherNote = filteredRecords
@@ -244,6 +231,12 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         return weightColorMap.get(i) || 'rgb(53, 162, 235)';
     });
 
+    // Restore weightPointRadii
+    const weightPointRadii = filteredRecords.map((r, i) => {
+        if ((r.weight ?? 0) <= 0) return 4;
+        return weightColorMap.has(i) ? 6 : 4;
+    });
+
     const weightData = {
         labels,
         datasets: [
@@ -279,7 +272,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     // --- BP Chart Logic ---
     const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
     const validBPCount = filteredRecords.filter(r => (r.systolic ?? 0) > 0).length;
-    const validHRCount = filteredRecords.filter(r => (r.heartRate ?? 0) > 0).length;
 
     // Helper: Weather color for BP
     const getBPColor = (index: number): string | null => {
