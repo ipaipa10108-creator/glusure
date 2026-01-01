@@ -1,7 +1,25 @@
 import React, { useState } from 'react';
-import { UserSettings, DEFAULT_THRESHOLDS } from '../types';
+import { UserSettings, DEFAULT_THRESHOLDS, DEFAULT_AUXILIARY_COLORS, AuxiliaryColors } from '../types';
 import { updateUserSettings } from '../utils/api';
 import { Save, Lock, ChevronLeft, Mail } from 'lucide-react';
+
+// Helper: Convert rgba to hex (for color input)
+const rgbaToHex = (rgba: string): string => {
+    const match = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!match) return '#000000';
+    const r = parseInt(match[1]).toString(16).padStart(2, '0');
+    const g = parseInt(match[2]).toString(16).padStart(2, '0');
+    const b = parseInt(match[3]).toString(16).padStart(2, '0');
+    return `#${r}${g}${b}`;
+};
+
+// Helper: Convert hex to rgba
+const hexToRgba = (hex: string, alpha: number): string => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 interface SettingsViewProps {
     user: UserSettings;
@@ -15,6 +33,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
     const [thresholds, setThresholds] = useState(user.thresholds || DEFAULT_THRESHOLDS);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
+
+    // Helper: Get current aux colors with defaults
+    const getAuxColors = (): AuxiliaryColors => ({
+        ...DEFAULT_AUXILIARY_COLORS,
+        ...user.auxiliaryColors
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -156,6 +180,150 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                     onChange={(e) => onUpdate({ ...user, enableSwipeNav: e.target.checked })}
                                 />
                             </label>
+
+                            {/* Auxiliary Line Color Customization */}
+                            {user.showAuxiliaryLines !== false && (
+                                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 sm:col-span-2 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-gray-700">輔助線顏色設定</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => onUpdate({ ...user, auxiliaryColors: undefined })}
+                                            className="text-xs text-teal-600 hover:text-teal-800 underline"
+                                        >
+                                            恢復預設顏色
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        {/* Weight Chart Colors */}
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                                value={rgbaToHex(user.auxiliaryColors?.resistance || 'rgba(185, 28, 28, 0.8)')}
+                                                onChange={(e) => onUpdate({
+                                                    ...user,
+                                                    auxiliaryColors: {
+                                                        ...getAuxColors(),
+                                                        resistance: hexToRgba(e.target.value, 0.8)
+                                                    }
+                                                })}
+                                            />
+                                            <span className="text-xs text-gray-600">阻力訓練</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                                value={rgbaToHex(user.auxiliaryColors?.cycling || 'rgba(249, 115, 22, 0.8)')}
+                                                onChange={(e) => onUpdate({
+                                                    ...user,
+                                                    auxiliaryColors: {
+                                                        ...getAuxColors(),
+                                                        cycling: hexToRgba(e.target.value, 0.8)
+                                                    }
+                                                })}
+                                            />
+                                            <span className="text-xs text-gray-600">腳踏車</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                                value={rgbaToHex(user.auxiliaryColors?.walking || 'rgba(16, 185, 129, 0.8)')}
+                                                onChange={(e) => onUpdate({
+                                                    ...user,
+                                                    auxiliaryColors: {
+                                                        ...getAuxColors(),
+                                                        walking: hexToRgba(e.target.value, 0.8)
+                                                    }
+                                                })}
+                                            />
+                                            <span className="text-xs text-gray-600">健走/其他</span>
+                                        </div>
+
+                                        {/* BP Chart Colors */}
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                                value={rgbaToHex(user.auxiliaryColors?.weatherHot || 'rgba(239, 68, 68, 0.6)')}
+                                                onChange={(e) => onUpdate({
+                                                    ...user,
+                                                    auxiliaryColors: {
+                                                        ...getAuxColors(),
+                                                        weatherHot: hexToRgba(e.target.value, 0.6)
+                                                    }
+                                                })}
+                                            />
+                                            <span className="text-xs text-gray-600">天氣(熱)</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                                value={rgbaToHex(user.auxiliaryColors?.weatherCold || 'rgba(59, 130, 246, 0.6)')}
+                                                onChange={(e) => onUpdate({
+                                                    ...user,
+                                                    auxiliaryColors: {
+                                                        ...getAuxColors(),
+                                                        weatherCold: hexToRgba(e.target.value, 0.6)
+                                                    }
+                                                })}
+                                            />
+                                            <span className="text-xs text-gray-600">天氣(冷)</span>
+                                        </div>
+
+                                        {/* Glucose Chart Colors */}
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                                value={rgbaToHex(user.auxiliaryColors?.bigMeal || 'rgba(239, 68, 68, 0.6)')}
+                                                onChange={(e) => onUpdate({
+                                                    ...user,
+                                                    auxiliaryColors: {
+                                                        ...getAuxColors(),
+                                                        bigMeal: hexToRgba(e.target.value, 0.6)
+                                                    }
+                                                })}
+                                            />
+                                            <span className="text-xs text-gray-600">大餐</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                                value={rgbaToHex(user.auxiliaryColors?.dieting || 'rgba(16, 185, 129, 0.6)')}
+                                                onChange={(e) => onUpdate({
+                                                    ...user,
+                                                    auxiliaryColors: {
+                                                        ...getAuxColors(),
+                                                        dieting: hexToRgba(e.target.value, 0.6)
+                                                    }
+                                                })}
+                                            />
+                                            <span className="text-xs text-gray-600">節食</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                                value={rgbaToHex(user.auxiliaryColors?.fasting || 'rgba(139, 92, 246, 0.6)')}
+                                                onChange={(e) => onUpdate({
+                                                    ...user,
+                                                    auxiliaryColors: {
+                                                        ...getAuxColors(),
+                                                        fasting: hexToRgba(e.target.value, 0.6)
+                                                    }
+                                                })}
+                                            />
+                                            <span className="text-xs text-gray-600">斷食</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </section >
 

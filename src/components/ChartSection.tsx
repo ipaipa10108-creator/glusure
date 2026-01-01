@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { HealthRecord, TimeRange, HealthThresholds } from '../types';
+import { HealthRecord, TimeRange, HealthThresholds, AuxiliaryColors, DEFAULT_AUXILIARY_COLORS } from '../types';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -41,11 +41,12 @@ interface ChartSectionProps {
     showThresholds?: boolean;
     showAuxiliaryLines?: boolean;
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
+    auxiliaryColors?: AuxiliaryColors;
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis' }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -197,18 +198,16 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     // Calculate validity count for fallback logic
     const validWeightCount = filteredRecords.filter(r => (r.weight ?? 0) > 0).length;
 
-    // Helper: Determine effective color for a record (Priority: Exercise > Other Note)
-    // Use darker red for resistance training for better visibility
-    const RESISTANCE_COLOR = 'rgba(185, 28, 28, 1)'; // Darker red
-    const CYCLING_COLOR = 'rgba(249, 115, 22, 1)'; // Orange
-    const WALKING_COLOR = 'rgba(16, 185, 129, 1)'; // Green
+    // Get active colors (user-defined or defaults)
+    const colors = auxiliaryColors || DEFAULT_AUXILIARY_COLORS;
 
+    // Helper: Determine effective color for a record (Priority: Exercise > Other Note)
     const getWeightColor = (index: number): string | null => {
         const r = filteredRecords[index];
         if (!r.noteContent) return weightColorMap.get(index) || null;
-        if (r.noteContent.includes('"type":"resistance"')) return RESISTANCE_COLOR;
-        if (r.noteContent.includes('"type":"cycling"')) return CYCLING_COLOR;
-        if (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) return WALKING_COLOR;
+        if (r.noteContent.includes('"type":"resistance"')) return colors.resistance;
+        if (r.noteContent.includes('"type":"cycling"')) return colors.cycling;
+        if (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) return colors.walking;
         return weightColorMap.get(index) || null;
     };
 
@@ -236,9 +235,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     const weightPointColors = filteredRecords.map((r, i) => {
         if ((r.weight ?? 0) <= 0) return 'rgb(53, 162, 235)';
-        // Point color matches segment color in X-axis mode? Or keep specific point logic?
-        // Let's keep existing logic but allow override if segment dictates?
-        // Actually, existing point logic only colors for 'Other Note'. Exercise doesn't color points in original code.
         return weightColorMap.get(i) || 'rgb(53, 162, 235)';
     });
 
@@ -251,9 +247,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const weightData = {
         labels,
         datasets: [
-            createSmartAuxBar('阻力訓練', 'rgba(185, 28, 28, 0.6)', (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, validWeightCount),
-            createSmartAuxBar('腳踏車', 'rgba(249, 115, 22, 0.6)', (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, validWeightCount),
-            createSmartAuxBar('健走/其他', 'rgba(16, 185, 129, 0.6)', (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, validWeightCount),
+            createSmartAuxBar('阻力訓練', colors.resistance, (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, validWeightCount),
+            createSmartAuxBar('腳踏車', colors.cycling, (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, validWeightCount),
+            createSmartAuxBar('健走/其他', colors.walking, (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, validWeightCount),
             {
                 label: '體重 (kg)',
                 data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
@@ -287,8 +283,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     // Helper: Weather color for BP
     const getBPColor = (index: number): string | null => {
         const r = filteredRecords[index];
-        if (r.weather === 'hot') return 'rgba(239, 68, 68, 1)';
-        if (r.weather === 'cold') return 'rgba(59, 130, 246, 1)';
+        if (r.weather === 'hot') return colors.weatherHot;
+        if (r.weather === 'cold') return colors.weatherCold;
         return null;
     };
     // Helper: Heart Rate color (currently only Other Note)
@@ -308,8 +304,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const bpData = {
         labels,
         datasets: [
-            createSmartAuxBar('天氣(熱)', 'rgba(239, 68, 68, 0.4)', (r) => r.weather === 'hot', bpYMax, validBPCount),
-            createSmartAuxBar('天氣(冷)', 'rgba(59, 130, 246, 0.4)', (r) => r.weather === 'cold', bpYMax, validBPCount),
+            createSmartAuxBar('天氣(熱)', colors.weatherHot, (r) => r.weather === 'hot', bpYMax, validBPCount),
+            createSmartAuxBar('天氣(冷)', colors.weatherCold, (r) => r.weather === 'cold', bpYMax, validBPCount),
             {
                 label: '收縮壓',
                 data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
@@ -364,9 +360,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const getGlucoseColorHelper = (index: number): string | null => {
         const r = filteredRecords[index];
         if (!r.noteContent) return glucoseColorMap.get(index) || null;
-        if (r.noteContent.includes('"bigMeal"')) return 'rgba(239, 68, 68, 1)';
-        if (r.noteContent.includes('"dieting"')) return 'rgba(16, 185, 129, 1)';
-        if (r.noteContent.includes('"fasting"')) return 'rgba(139, 92, 246, 1)';
+        if (r.noteContent.includes('"bigMeal"')) return colors.bigMeal;
+        if (r.noteContent.includes('"dieting"')) return colors.dieting;
+        if (r.noteContent.includes('"fasting"')) return colors.fasting;
         return glucoseColorMap.get(index) || null;
     };
 
@@ -391,9 +387,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const glucoseData = {
         labels,
         datasets: [
-            createSmartAuxBar('大餐', 'rgba(239, 68, 68, 0.4)', (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax, validGlucoseCount),
-            createSmartAuxBar('節食', 'rgba(16, 185, 129, 0.4)', (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax, validGlucoseCount),
-            createSmartAuxBar('斷食', 'rgba(139, 92, 246, 0.4)', (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax, validGlucoseCount),
+            createSmartAuxBar('大餐', colors.bigMeal, (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax, validGlucoseCount),
+            createSmartAuxBar('節食', colors.dieting, (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax, validGlucoseCount),
+            createSmartAuxBar('斷食', colors.fasting, (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax, validGlucoseCount),
             {
                 label: '空腹血糖',
                 data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null),

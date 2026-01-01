@@ -234,6 +234,7 @@ function App() {
                             onUpdateSettings={handleUpdateSettings}
                             showSuccessFeedback={showSuccessFeedback}
                             auxiliaryLineMode={user.auxiliaryLineMode}
+                            auxiliaryColors={user.auxiliaryColors}
                         />
                     )}
 

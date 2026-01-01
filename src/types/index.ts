@@ -60,7 +60,34 @@ export interface UserSettings {
     showAuxiliaryLines?: boolean;
     enableSwipeNav?: boolean;
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
+    auxiliaryColors?: AuxiliaryColors;
 }
+
+// Auxiliary Line Color Settings
+export interface AuxiliaryColors {
+    // Weight chart - Exercise types
+    resistance: string;
+    cycling: string;
+    walking: string;
+    // BP chart - Weather
+    weatherHot: string;
+    weatherCold: string;
+    // Glucose chart - Diet types
+    bigMeal: string;
+    dieting: string;
+    fasting: string;
+}
+
+export const DEFAULT_AUXILIARY_COLORS: AuxiliaryColors = {
+    resistance: 'rgba(185, 28, 28, 0.8)',   // Darker red
+    cycling: 'rgba(249, 115, 22, 0.8)',     // Orange
+    walking: 'rgba(16, 185, 129, 0.8)',     // Green
+    weatherHot: 'rgba(239, 68, 68, 0.6)',   // Red
+    weatherCold: 'rgba(59, 130, 246, 0.6)', // Blue
+    bigMeal: 'rgba(239, 68, 68, 0.6)',      // Red
+    dieting: 'rgba(16, 185, 129, 0.6)',     // Green
+    fasting: 'rgba(139, 92, 246, 0.6)',     // Purple
+};
 
 export const DEFAULT_THRESHOLDS: HealthThresholds = {
     systolicHigh: 140,

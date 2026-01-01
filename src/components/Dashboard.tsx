@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HealthRecord, TimeRange, UserSettings } from '../types';
+import { HealthRecord, TimeRange, UserSettings, AuxiliaryColors } from '../types';
 import { ChartSection } from './ChartSection';
 import { isWeightAbnormal } from '../utils/helpers';
 import { DEFAULT_THRESHOLDS } from '../types';
@@ -15,6 +15,7 @@ interface DashboardProps {
     onUpdateSettings: (settings: Partial<UserSettings>) => Promise<void>;
     showSuccessFeedback?: boolean;
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
+    auxiliaryColors?: AuxiliaryColors;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -25,7 +26,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onSaveRecord,
     onUpdateSettings,
     showSuccessFeedback,
-    auxiliaryLineMode
+    auxiliaryLineMode,
+    auxiliaryColors
 }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('month');
     const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -198,6 +200,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 showThresholds={showThresholds}
                 showAuxiliaryLines={showAuxiliaryLines}
                 auxiliaryLineMode={auxiliaryLineMode}
+                auxiliaryColors={auxiliaryColors}
             />
 
             {/* Exercise Modal */}
