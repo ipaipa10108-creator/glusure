@@ -193,6 +193,23 @@ function App() {
             className="min-h-screen"
         >
             <Layout userName={user.name} onLogout={handleLogout} onSettings={() => setViewMode('settings')}>
+                {/* Global Feedback Overlays */}
+                {showSuccessFeedback && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+                        <div className="bg-white/90 px-8 py-4 rounded-full shadow-2xl border-2 border-green-100 animate-fade-out-up">
+                            <span className="text-2xl font-bold text-green-600 tracking-wider">紀錄成功</span>
+                        </div>
+                    </div>
+                )}
+
+                {showDeleteFeedback && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+                        <div className="bg-white/90 px-8 py-4 rounded-full shadow-2xl border-2 border-red-100 animate-fade-out-up">
+                            <span className="text-2xl font-bold text-red-600 tracking-wider">刪除成功</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* View Switcher */}
                 <div className="flex justify-center mb-6 space-x-2 sm:space-x-4">
                     <button
@@ -235,8 +252,8 @@ function App() {
                             onEditRecord={handleEditRecord}
                             onSaveRecord={handleSubmitRecord}
                             onUpdateSettings={handleUpdateSettings}
-                            showSuccessFeedback={showSuccessFeedback}
-                            showDeleteFeedback={showDeleteFeedback}
+                            onSaveRecord={handleSubmitRecord}
+                            onUpdateSettings={handleUpdateSettings}
                         />
                     )}
 
@@ -283,7 +300,7 @@ function App() {
                     userName={user.name}
                 />
             </Layout>
-        </div>
+        </div >
     );
 }
 
