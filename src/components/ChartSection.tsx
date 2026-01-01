@@ -275,7 +275,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({
         datasets: [
             {
                 label: '體重 (kg)',
-                data: filteredRecords.map(r => r.weight),
+                data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
                 yAxisID: 'y',
@@ -300,7 +300,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({
         datasets: [
             {
                 label: '收縮壓 (mmHg)',
-                data: filteredRecords.map(r => r.systolic),
+                data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.5)',
                 yAxisID: 'y',
@@ -308,7 +308,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({
             },
             {
                 label: '舒張壓 (mmHg)',
-                data: filteredRecords.map(r => r.diastolic),
+                data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null),
                 borderColor: 'rgb(53, 162, 235)',
                 backgroundColor: 'rgba(53, 162, 235, 0.5)',
                 yAxisID: 'y',
