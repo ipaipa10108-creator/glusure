@@ -11,6 +11,15 @@ interface DashboardProps {
     userSettings: UserSettings | null;
     onAddRecord: () => void;
     onEditRecord: (record: HealthRecord) => void;
+    onSaveRecord: (record: HealthRecord) => Promise<void>;
+    onUpdateSettings: (settings: Partial<UserSettings>) => Promise<void>;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({
+    records,
+    userSettings,
+    onAddRecord,
+    onEditRecord,
     onSaveRecord,
     onUpdateSettings
 }) => {
