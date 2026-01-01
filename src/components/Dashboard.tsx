@@ -204,7 +204,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 referenceDate={referenceDate || undefined}
                 thresholds={userSettings?.thresholds}
                 showThresholds={showThresholds}
-                showThresholds={showThresholds}
                 showAuxiliaryLines={showAuxiliaryLines}
                 auxiliaryLineMode={userSettings?.auxiliaryLineMode}
             />

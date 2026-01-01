@@ -45,7 +45,16 @@ interface ChartSectionProps {
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({
+    records,
+    timeRange: globalTimeRange,
+    onDataClick,
+    referenceDate,
+    thresholds,
+    showThresholds = true,
+    showAuxiliaryLines = true,
+    auxiliaryLineMode = 'y'
+}) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -172,7 +181,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     // Returns `null` if mode is 'x' and record is connected (handled by plugin).
     // Returns `bar` if mode is 'y' OR (mode is 'x' and record is isolated).
 
-    const auxiliaryLineMode = (props as any).auxiliaryLineMode || 'y';
+
 
     const createAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number) => {
         if (!showAuxiliaryLines) return null;
@@ -199,9 +208,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             }),
             backgroundColor: color,
             type: 'bar',
-            barThickness: auxiliaryLineMode === 'y' ? 'flex' : 4, // Y-mode = Wide area? Or just current style? User said "current is Y-axis". Current is `barThickness: 2`. Use 'flex' for full background? Or keep 2?
-            // "Y軸表示和現在呈現的是一致的方式" -> Current is THIN LINE (2px).
-            // So 'y' mode = 2px vertical line.
             barThickness: 2,
             order: 1000
         };
@@ -424,8 +430,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         plugins: { legend: { position: 'top' as const } },
         scales: { y: { type: 'linear' as const, display: true, position: 'left' as const } },
     };
-
-    const plugins = [xModePlugin];
 
     const plugins = [xModePlugin];
 
