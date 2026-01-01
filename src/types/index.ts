@@ -59,7 +59,6 @@ export interface UserSettings {
     showAlertLines?: boolean;
     showAuxiliaryLines?: boolean;
     enableSwipeNav?: boolean;
-    auxiliaryLineMode?: 'y' | 'x'; // 'y' = vertical bars (default), 'x' = markers on line
 }
 
 export const DEFAULT_THRESHOLDS: HealthThresholds = {
