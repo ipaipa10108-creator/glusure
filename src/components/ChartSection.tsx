@@ -185,26 +185,14 @@ export const ChartSection: React.FC<ChartSectionProps> = ({
 
     const createAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number) => {
         if (!showAuxiliaryLines) return null;
+        // In 'x' mode, we never use bars. We use the plugin to draw overlays on the line.
+        if (auxiliaryLineMode === 'x') return null;
 
         return {
             label: label,
-            data: filteredRecords.map((r, i) => {
+            data: filteredRecords.map((r) => {
                 const match = condition(r);
-                if (!match) return null;
-
-                if (auxiliaryLineMode === 'x') {
-                    // Check connections
-                    const hasPrev = i > 0;
-                    const hasNext = i < filteredRecords.length - 1;
-                    // If connected to either, we prefer the "X-axis" style (marker on segment).
-                    // So we hide this bar.
-                    // The Plugin will handle drawing the marker.
-                    // "若紀錄的輔助線尚未有點跟點的連線... 暫時由 Y軸... 直到有點跟點..."
-                    // So if isolated (no prev, no next), show bar.
-                    if (hasPrev || hasNext) return null;
-                }
-
-                return yMax;
+                return match ? yMax : null;
             }),
             backgroundColor: color,
             type: 'bar',
@@ -213,68 +201,70 @@ export const ChartSection: React.FC<ChartSectionProps> = ({
         };
     };
 
-    // Plugin for X-Mode Ticks
+    // Plugin for X-Mode: Overlays color on the line segments
     const xModePlugin = {
         id: 'xModePlugin',
         afterDatasetsDraw(chart: any) {
             if (auxiliaryLineMode !== 'x' || !showAuxiliaryLines) return;
-            const { ctx, scales: { x, y } } = chart;
+            const { ctx } = chart;
 
-            // Find the main line dataset to position the ticks on the line
-            const lineDataset = chart.data.datasets.find((d: any) => d.type === 'line' && d.label !== '輔助線' && !d.label?.includes('警示'));
+            // Find the main line dataset
+            // We look for a line dataset that is not an auxiliary line
+            const datasetIndex = chart.data.datasets.findIndex((d: any) =>
+                d.type === 'line' && d.label !== '輔助線' && !d.label?.includes('警示')
+            );
 
-            const drawTick = (i: number, color: string) => {
-                const x1 = x.getPixelForValue(i);
-                const x2 = x.getPixelForValue(i + 1);
-                const xMid = (x1 + x2) / 2;
+            if (datasetIndex === -1) return;
 
-                let yMid = (y.top + y.bottom) / 2;
+            const meta = chart.getDatasetMeta(datasetIndex);
 
-                // Try to interpolate Y position if line dataset exists
-                if (lineDataset) {
-                    const v1 = lineDataset.data[i];
-                    const v2 = lineDataset.data[i + 1];
-                    if (typeof v1 === 'number' && typeof v2 === 'number') {
-                        const y1 = y.getPixelForValue(v1);
-                        const y2 = y.getPixelForValue(v2);
-                        yMid = (y1 + y2) / 2;
-                    }
-                }
+            const drawOverlay = (i: number, color: string) => {
+                const point = meta.data[i];
+                const nextPoint = meta.data[i + 1];
+
+                if (!point || point.skip) return;
 
                 ctx.save();
-                ctx.beginPath();
                 ctx.strokeStyle = color;
-                ctx.lineWidth = 3;
-                // Draw a distinct vertical tick
-                ctx.moveTo(xMid, yMid - 8);
-                ctx.lineTo(xMid, yMid + 8);
-                ctx.stroke();
+                ctx.lineWidth = 4; // Slightly thicker than the main line
+                ctx.lineCap = 'round';
 
-                // Add a small dot for visibility
-                ctx.beginPath();
-                ctx.fillStyle = color;
-                ctx.arc(xMid, yMid, 2, 0, Math.PI * 2);
-                ctx.fill();
-
+                if (nextPoint && !nextPoint.skip) {
+                    // Draw line segment
+                    ctx.beginPath();
+                    ctx.moveTo(point.x, point.y);
+                    ctx.lineTo(nextPoint.x, nextPoint.y);
+                    ctx.stroke();
+                } else {
+                    // Isolated point: draw a halo/ring
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
                 ctx.restore();
             };
 
             filteredRecords.forEach((r, i) => {
-                if (i >= filteredRecords.length - 1) return; // No next point
+                // Determine color based on priority
+                let color = null;
 
-                // Check conditions
-                // Weight/Diet/Exercise
                 if (r.noteContent) {
-                    if (r.noteContent.includes('"type":"resistance"')) drawTick(i, 'rgba(239, 68, 68, 1)');
-                    else if (r.noteContent.includes('"type":"cycling"')) drawTick(i, 'rgba(249, 115, 22, 1)');
-                    else if ((r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"'))) drawTick(i, 'rgba(16, 185, 129, 1)');
-                    else if (r.noteContent.includes('"bigMeal"')) drawTick(i, 'rgba(239, 68, 68, 1)');
-                    else if (r.noteContent.includes('"dieting"')) drawTick(i, 'rgba(16, 185, 129, 1)');
-                    else if (r.noteContent.includes('"fasting"')) drawTick(i, 'rgba(139, 92, 246, 1)');
+                    if (r.noteContent.includes('"type":"resistance"')) color = 'rgba(239, 68, 68, 1)'; // Red
+                    else if (r.noteContent.includes('"type":"cycling"')) color = 'rgba(249, 115, 22, 1)'; // Orange
+                    else if (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) color = 'rgba(16, 185, 129, 1)'; // Green
+                    else if (r.noteContent.includes('"bigMeal"')) color = 'rgba(239, 68, 68, 1)';
+                    else if (r.noteContent.includes('"dieting"')) color = 'rgba(16, 185, 129, 1)';
+                    else if (r.noteContent.includes('"fasting"')) color = 'rgba(139, 92, 246, 1)';
                 }
-                // Weather
-                if (r.weather === 'hot') drawTick(i, 'rgba(239, 68, 68, 1)');
-                else if (r.weather === 'cold') drawTick(i, 'rgba(59, 130, 246, 1)');
+
+                if (!color) {
+                    if (r.weather === 'hot') color = 'rgba(239, 68, 68, 1)';
+                    else if (r.weather === 'cold') color = 'rgba(59, 130, 246, 1)';
+                }
+
+                if (color) {
+                    drawOverlay(i, color);
+                }
             });
         }
     };
