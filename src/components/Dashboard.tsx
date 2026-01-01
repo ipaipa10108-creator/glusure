@@ -14,6 +14,7 @@ interface DashboardProps {
     onSaveRecord: (record: HealthRecord) => Promise<void>;
     onUpdateSettings: (settings: Partial<UserSettings>) => Promise<void>;
     showSuccessFeedback?: boolean;
+    showDeleteFeedback?: boolean;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -23,7 +24,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onEditRecord,
     onSaveRecord,
     onUpdateSettings,
-    showSuccessFeedback
+    showSuccessFeedback,
+    showDeleteFeedback
 }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('month');
     const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -77,6 +79,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
                     <div className="bg-white/90 px-8 py-4 rounded-full shadow-2xl border-2 border-green-100 animate-fade-out-up">
                         <span className="text-2xl font-bold text-green-600 tracking-wider">紀錄成功</span>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteFeedback && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                    <div className="bg-white/90 px-8 py-4 rounded-full shadow-2xl border-2 border-red-100 animate-fade-out-up">
+                        <span className="text-2xl font-bold text-red-600 tracking-wider">刪除成功</span>
                     </div>
                 </div>
             )}
@@ -194,7 +204,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 referenceDate={referenceDate || undefined}
                 thresholds={userSettings?.thresholds}
                 showThresholds={showThresholds}
+                showThresholds={showThresholds}
                 showAuxiliaryLines={showAuxiliaryLines}
+                auxiliaryLineMode={userSettings?.auxiliaryLineMode}
             />
 
             {/* Exercise Modal */}

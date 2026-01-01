@@ -117,6 +117,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                 />
                             </label>
 
+                            {/* Auxiliary Line Mode Selection */}
+                            {(user.showAuxiliaryLines !== false) && (
+                                <div className="p-3 border border-gray-200 rounded-lg bg-gray-50 sm:col-span-2">
+                                    <span className="block text-sm text-gray-700 mb-2">輔助線呈現方式</span>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="auxLineMode"
+                                                className="text-teal-600 focus:ring-teal-500"
+                                                checked={!user.auxiliaryLineMode || user.auxiliaryLineMode === 'y'}
+                                                onChange={() => onUpdate({ ...user, auxiliaryLineMode: 'y' })}
+                                            />
+                                            <span className="text-sm text-gray-600">Y軸 (背景色塊)</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="auxLineMode"
+                                                className="text-teal-600 focus:ring-teal-500"
+                                                checked={user.auxiliaryLineMode === 'x'}
+                                                onChange={() => onUpdate({ ...user, auxiliaryLineMode: 'x' })}
+                                            />
+                                            <span className="text-sm text-gray-600">X軸 (線段標記)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+
+
                             <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 sm:col-span-2">
                                 <span className="text-sm text-gray-700">啟用左右滑動切換頁面 (儀表板/紀錄/醫師模式)</span>
                                 <input

@@ -40,6 +40,7 @@ interface ChartSectionProps {
     thresholds?: HealthThresholds;
     showThresholds?: boolean;
     showAuxiliaryLines?: boolean;
+    auxiliaryLineMode?: 'y' | 'x';
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
@@ -123,18 +124,139 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     const activeThresholds = thresholds || { weightHigh: 0, weightLow: 0, systolicHigh: 140, diastolicHigh: 90, fastingHigh: 100, postMealHigh: 140 };
 
-    // Helper to create auxiliary line datasets (Vertical Bars)
+    // --- Auxiliary Line Logic ---
+    // If mode is 'x', we draw ticks on line segments. If isolated, fallback to bar.
+    // We will prepare data for a custom plugin to handle the 'x' mode drawing.
+    // But for simplicity and robustness with React-Chartjs-2, we can generate:
+    // 1. A Bar dataset (Background) - ONLY for 'y' mode or 'x' mode fallback.
+    // 2. A Custom Plugin to draw the 'x' mode ticks.
+
+
+
+    // Easier approach without complex Plugin:
+    // 'x' mode = We draw a 'bar' dataset but very thin (a line) and positioned between points?
+    // Chart.js Bar chart is centered on the point.
+    // We want it BETWEEN points.
+    // Let's stick to strict logic:
+    // If 'y' mode: Full Bar on the point.
+    // If 'x' mode:
+    //    If has neighbor: Do NOT draw Bar. (The plugin or advanced logic would handle it, but for MVP let's just make it a thinner Bar on the point? No, user explicitly said "between points").
+    //    If isolated: Draw Full Bar.
+
+    // Implementation constraint: Custom drawing between points is hard without Plugin.
+    // Let's try a simpler interpretation of 'X-axis mode' for now that is robust:
+    // "Market on the line connecting points" -> coloring the line segment?
+    // Let's go with the Plugin idea but keep it simple.
+    // Actually, to avoid "plugin hell", let's use the provided `auxiliaryLineMode` to toggle `barThickness`.
+    // IF 'x' mode AND connected -> `barThickness: 2` (thin line)? But it's still ON the point, not between.
+
+    // Accurate Interpretation:
+    // User wants to distinguish "Area/Region" (Y-axis filling) vs "Event/Marker" (X-axis tick).
+    // Let's implement:
+    // Mode 'y': backgroundColor fills the column (barThickness: 'flex' or huge).
+    // Mode 'x': Thinner bar?
+    // Let's look at `createAuxBar`: currently `barThickness: 2` (already thin!). AND `data` is `yMax`.
+    // It looks like a vertical line already.
+    // Maybe previous implementation was ALREADY "X-axis style"?
+    // "Y軸表示和現在呈現的是一致的方式" -> User thinks current is Y-axis?
+    // Current `createAuxBar` uses `barThickness: 2`. This is a thin line.
+    // Wait, the user might see it as "Y-axis" because it goes from 0 to yMax.
+    // "X軸表示則是將現段呈現在數據中點跟點連接的線段上呈現"
+
+    // Let's stick to this:
+    // Mode 'y': Existing implementation (Vertical Line / Bar).
+    // Mode 'x': Modification -> Only draw if isolated. If connected, we assume the user wants a marker ON THE LINE SEGMENT.
+    // I will use a Plugin to draw a small tick mark on the line segment between i and i+1.
+
+    // Revised `createAuxBar`:
+    // Returns `null` if mode is 'x' and record is connected (handled by plugin).
+    // Returns `bar` if mode is 'y' OR (mode is 'x' and record is isolated).
+
+    const auxiliaryLineMode = (props as any).auxiliaryLineMode || 'y';
+
     const createAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number) => {
         if (!showAuxiliaryLines) return null;
+
         return {
             label: label,
-            data: filteredRecords.map(r => condition(r) ? yMax : null),
+            data: filteredRecords.map((r, i) => {
+                const match = condition(r);
+                if (!match) return null;
+
+                if (auxiliaryLineMode === 'x') {
+                    // Check connections
+                    const hasPrev = i > 0;
+                    const hasNext = i < filteredRecords.length - 1;
+                    // If connected to either, we prefer the "X-axis" style (marker on segment).
+                    // So we hide this bar.
+                    // The Plugin will handle drawing the marker.
+                    // "若紀錄的輔助線尚未有點跟點的連線... 暫時由 Y軸... 直到有點跟點..."
+                    // So if isolated (no prev, no next), show bar.
+                    if (hasPrev || hasNext) return null;
+                }
+
+                return yMax;
+            }),
             backgroundColor: color,
             type: 'bar',
+            barThickness: auxiliaryLineMode === 'y' ? 'flex' : 4, // Y-mode = Wide area? Or just current style? User said "current is Y-axis". Current is `barThickness: 2`. Use 'flex' for full background? Or keep 2?
+            // "Y軸表示和現在呈現的是一致的方式" -> Current is THIN LINE (2px).
+            // So 'y' mode = 2px vertical line.
             barThickness: 2,
-            order: 1000 // Render behind lines
+            order: 1000
         };
     };
+
+    // Plugin for X-Mode Ticks
+    const xModePlugin = {
+        id: 'xModePlugin',
+        afterDatasetsDraw(chart: any) {
+            if (auxiliaryLineMode !== 'x' || !showAuxiliaryLines) return;
+            const { ctx, scales: { x, y } } = chart;
+
+            // We need to know which records match which condition and color.
+            // Since we can't easily access the "conditions" from inside the plugin without passing them,
+            // we will hardcode the checks or pass them via chart options.
+            // Let's hardcode the categories for simplicity as they are static in this component.
+
+            const drawTick = (i: number, color: string) => {
+                const x1 = x.getPixelForValue(i);
+                const x2 = x.getPixelForValue(i + 1);
+                // Draw a small distinct marker on the line connecting i and i+1
+                // "橫線中有一小段直線" -> Vertical tick on horizontal segment
+                const xMid = (x1 + x2) / 2;
+                const yMid = (y.top + y.bottom) / 2;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.moveTo(xMid, yMid - 10);
+                ctx.lineTo(xMid, yMid + 10);
+                ctx.stroke();
+                ctx.restore();
+            };
+
+            filteredRecords.forEach((r, i) => {
+                if (i >= filteredRecords.length - 1) return; // No next point
+
+                // Check conditions
+                // Weight/Diet/Exercise
+                if (r.noteContent) {
+                    if (r.noteContent.includes('"type":"resistance"')) drawTick(i, 'rgba(239, 68, 68, 1)');
+                    else if (r.noteContent.includes('"type":"cycling"')) drawTick(i, 'rgba(249, 115, 22, 1)');
+                    else if ((r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"'))) drawTick(i, 'rgba(16, 185, 129, 1)');
+                    else if (r.noteContent.includes('"bigMeal"')) drawTick(i, 'rgba(239, 68, 68, 1)');
+                    else if (r.noteContent.includes('"dieting"')) drawTick(i, 'rgba(16, 185, 129, 1)');
+                    else if (r.noteContent.includes('"fasting"')) drawTick(i, 'rgba(139, 92, 246, 1)');
+                }
+                // Weather
+                if (r.weather === 'hot') drawTick(i, 'rgba(239, 68, 68, 1)');
+                else if (r.weather === 'cold') drawTick(i, 'rgba(59, 130, 246, 1)');
+            });
+        }
+    };
+
 
     // --- Cross-record otherNote color mapping ---
     // 找出所有有 otherNote 的紀錄
@@ -303,6 +425,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         scales: { y: { type: 'linear' as const, display: true, position: 'left' as const } },
     };
 
+    const plugins = [xModePlugin];
+
+    const plugins = [xModePlugin];
+
     const ranges: { value: TimeRange; label: string }[] = [
         { value: 'week', label: '一週' },
         { value: '2week', label: '雙週' },
@@ -348,17 +474,17 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
                     <ExpandButton type="weight" />
                     <h4 className="text-md font-medium text-gray-700 mb-4">體重趨勢 (點擊數值編輯)</h4>
-                    <Line ref={chartRefWeight} data={weightData} options={options} {...bindClick(chartRefWeight)} />
+                    <Line ref={chartRefWeight} data={weightData} options={options} plugins={plugins} {...bindClick(chartRefWeight)} />
                 </div>
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
                     <ExpandButton type="bp" />
                     <h4 className="text-md font-medium text-gray-700 mb-4">血壓變化 (點擊數值編輯)</h4>
-                    <Line ref={chartRefBP} data={bpData} options={options} {...bindClick(chartRefBP)} />
+                    <Line ref={chartRefBP} data={bpData} options={options} plugins={plugins} {...bindClick(chartRefBP)} />
                 </div>
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 cursor-pointer hover:border-teal-200 transition">
                     <ExpandButton type="glucose" />
                     <h4 className="text-md font-medium text-gray-700 mb-4">血糖紀錄 (點擊數值編輯)</h4>
-                    <Line ref={chartRefGlucose} data={glucoseData} options={options} {...bindClick(chartRefGlucose)} />
+                    <Line ref={chartRefGlucose} data={glucoseData} options={options} plugins={plugins} {...bindClick(chartRefGlucose)} />
                 </div>
             </div>
 
@@ -388,7 +514,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                         </div>
                     </div>
                     <div className="flex-1 p-4 overflow-auto">
-                        <Line data={getChartData(fullscreenChart)} options={{ ...options, maintainAspectRatio: false }} />
+                        <Line data={getChartData(fullscreenChart)} options={{ ...options, maintainAspectRatio: false }} plugins={plugins} />
                     </div>
                 </div>
             )}

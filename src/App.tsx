@@ -100,6 +100,7 @@ function App() {
     };
 
     const [showSuccessFeedback, setShowSuccessFeedback] = useState(false);
+    const [showDeleteFeedback, setShowDeleteFeedback] = useState(false);
 
     // Swipe Navigation Logic
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -157,6 +158,8 @@ function App() {
         if (confirm('確定要刪除這筆紀錄嗎？')) {
             await deleteRecord(id);
             await loadData();
+            setShowDeleteFeedback(true);
+            setTimeout(() => setShowDeleteFeedback(false), 3000);
         }
     };
 
@@ -233,6 +236,7 @@ function App() {
                             onSaveRecord={handleSubmitRecord}
                             onUpdateSettings={handleUpdateSettings}
                             showSuccessFeedback={showSuccessFeedback}
+                            showDeleteFeedback={showDeleteFeedback}
                         />
                     )}
 
