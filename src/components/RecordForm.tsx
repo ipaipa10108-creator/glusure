@@ -9,13 +9,9 @@ import clsx from 'clsx';
 interface RecordFormProps {
     isOpen: boolean;
     onClose: () => void;
-    onClose: () => void;
     onSubmit: (record: HealthRecord) => Promise<void>;
     initialData?: HealthRecord | null;
     userName: string;
-}
-initialData ?: HealthRecord | null;
-userName: string;
 }
 
 export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmit, initialData, userName }) => {
