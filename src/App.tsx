@@ -252,8 +252,7 @@ function App() {
                             onEditRecord={handleEditRecord}
                             onSaveRecord={handleSubmitRecord}
                             onUpdateSettings={handleUpdateSettings}
-                            onSaveRecord={handleSubmitRecord}
-                            onUpdateSettings={handleUpdateSettings}
+
                         />
                     )}
 
