@@ -279,7 +279,89 @@ export const ChartSection: React.FC<ChartSectionProps> = ({
         }
     };
 
-    // ... existing code ...
+    // Construct Datasets
+    const weightData = {
+        labels,
+        datasets: [
+            {
+                label: '體重 (kg)',
+                data: filteredRecords.map(r => r.weight),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                yAxisID: 'y',
+                spanGaps: true,
+            },
+            createThresholdLine(activeThresholds.weightHigh, '體重上限', 'rgba(255, 99, 132, 0.8)'),
+            createThresholdLine(activeThresholds.weightLow, '體重下限', 'rgba(54, 162, 235, 0.8)'),
+            // Auxiliary Bars (Exercise, etc.) - Pass yMax as a large number roughly covering the chart range
+            createAuxBar('無氧運動', 'rgba(239, 68, 68, 0.2)', r => !!r.noteContent?.includes('"type":"resistance"'), 200),
+            createAuxBar('有氧運動', 'rgba(249, 115, 22, 0.2)', r => !!r.noteContent?.includes('"type":"cycling"'), 200),
+            createAuxBar('活動', 'rgba(16, 185, 129, 0.2)', r => !!(r.noteContent?.includes('"type":"walking"') || r.noteContent?.includes('"type":"other"')), 200),
+            createAuxBar('大餐', 'rgba(239, 68, 68, 0.2)', r => !!r.noteContent?.includes('"bigMeal"'), 200),
+            createAuxBar('節食', 'rgba(16, 185, 129, 0.2)', r => !!r.noteContent?.includes('"dieting"'), 200),
+            createAuxBar('斷食', 'rgba(139, 92, 246, 0.2)', r => !!r.noteContent?.includes('"fasting"'), 200),
+            createAuxBar('天氣熱', 'rgba(239, 68, 68, 0.1)', r => r.weather === 'hot', 200),
+            createAuxBar('天氣冷', 'rgba(59, 130, 246, 0.1)', r => r.weather === 'cold', 200),
+        ].filter(Boolean) as any[]
+    };
+
+    const bpData = {
+        labels,
+        datasets: [
+            {
+                label: '收縮壓 (mmHg)',
+                data: filteredRecords.map(r => r.systolic),
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                yAxisID: 'y',
+                spanGaps: true,
+            },
+            {
+                label: '舒張壓 (mmHg)',
+                data: filteredRecords.map(r => r.diastolic),
+                borderColor: 'rgb(53, 162, 235)',
+                backgroundColor: 'rgba(53, 162, 235, 0.5)',
+                yAxisID: 'y',
+                spanGaps: true,
+            },
+            createThresholdLine(activeThresholds.systolicHigh, '收縮壓上限', 'rgba(255, 99, 132, 0.8)'),
+            createThresholdLine(activeThresholds.diastolicHigh, '舒張壓上限', 'rgba(53, 162, 235, 0.8)'),
+            // Aux Bars
+            createAuxBar('無氧運動', 'rgba(239, 68, 68, 0.2)', r => !!r.noteContent?.includes('"type":"resistance"'), 200),
+            createAuxBar('有氧運動', 'rgba(249, 115, 22, 0.2)', r => !!r.noteContent?.includes('"type":"cycling"'), 200),
+            createAuxBar('活動', 'rgba(16, 185, 129, 0.2)', r => !!(r.noteContent?.includes('"type":"walking"') || r.noteContent?.includes('"type":"other"')), 200),
+            createAuxBar('大餐', 'rgba(239, 68, 68, 0.2)', r => !!r.noteContent?.includes('"bigMeal"'), 200),
+            createAuxBar('節食', 'rgba(16, 185, 129, 0.2)', r => !!r.noteContent?.includes('"dieting"'), 200),
+            createAuxBar('斷食', 'rgba(139, 92, 246, 0.2)', r => !!r.noteContent?.includes('"fasting"'), 200),
+            createAuxBar('天氣熱', 'rgba(239, 68, 68, 0.1)', r => r.weather === 'hot', 200),
+            createAuxBar('天氣冷', 'rgba(59, 130, 246, 0.1)', r => r.weather === 'cold', 200),
+        ].filter(Boolean) as any[]
+    };
+
+    const glucoseData = {
+        labels,
+        datasets: [
+            {
+                label: '血糖 (mg/dL)',
+                data: filteredRecords.map(r => r.glucose),
+                borderColor: 'rgb(255, 206, 86)',
+                backgroundColor: 'rgba(255, 206, 86, 0.5)',
+                yAxisID: 'y',
+                spanGaps: true,
+            },
+            createThresholdLine(activeThresholds.fastingHigh, '空腹血糖上限', 'rgba(255, 159, 64, 0.8)'),
+            createThresholdLine(activeThresholds.postMealHigh, '飯後血糖上限', 'rgba(153, 102, 255, 0.8)'),
+            // Aux Bars
+            createAuxBar('無氧運動', 'rgba(239, 68, 68, 0.2)', r => !!r.noteContent?.includes('"type":"resistance"'), 500),
+            createAuxBar('有氧運動', 'rgba(249, 115, 22, 0.2)', r => !!r.noteContent?.includes('"type":"cycling"'), 500),
+            createAuxBar('活動', 'rgba(16, 185, 129, 0.2)', r => !!(r.noteContent?.includes('"type":"walking"') || r.noteContent?.includes('"type":"other"')), 500),
+            createAuxBar('大餐', 'rgba(239, 68, 68, 0.2)', r => !!r.noteContent?.includes('"bigMeal"'), 500),
+            createAuxBar('節食', 'rgba(16, 185, 129, 0.2)', r => !!r.noteContent?.includes('"dieting"'), 500),
+            createAuxBar('斷食', 'rgba(139, 92, 246, 0.2)', r => !!r.noteContent?.includes('"fasting"'), 500),
+            createAuxBar('天氣熱', 'rgba(239, 68, 68, 0.1)', r => r.weather === 'hot', 500),
+            createAuxBar('天氣冷', 'rgba(59, 130, 246, 0.1)', r => r.weather === 'cold', 500),
+        ].filter(Boolean) as any[]
+    };
 
     const options = {
         responsive: true,
