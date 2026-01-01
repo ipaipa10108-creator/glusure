@@ -17,6 +17,14 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [selectedNoteRecord, setSelectedNoteRecord] = useState<HealthRecord | null>(null);
 
+    const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+
+    const handleDelete = async (id: string) => {
+        await onDelete(id);
+        setShowDeleteSuccess(true);
+        setTimeout(() => setShowDeleteSuccess(false), 2000);
+    };
+
     const filteredAndSortedRecords = useMemo(() => {
         let now: Date;
         if (referenceDate) {
@@ -197,7 +205,7 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
                                         <Edit2 className="h-5 w-5" />
                                     </button>
                                     <button
-                                        onClick={() => record.id && onDelete(record.id)}
+                                        onClick={() => record.id && handleDelete(record.id)}
                                         className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition"
                                         title="刪除"
                                     >
@@ -209,6 +217,15 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
                     );
                 })}
             </ul>
+
+            {/* Delete Success Overlay */}
+            {showDeleteSuccess && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                    <div className="bg-white/90 px-8 py-4 rounded-full shadow-2xl border-2 border-red-100 animate-fade-out-up">
+                        <span className="text-2xl font-bold text-red-600 tracking-wider">刪除成功</span>
+                    </div>
+                </div>
+            )}
 
             {/* Note Detail Modal */}
             {selectedNoteRecord && (

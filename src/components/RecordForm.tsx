@@ -9,9 +9,13 @@ import clsx from 'clsx';
 interface RecordFormProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (record: HealthRecord) => void;
+    onClose: () => void;
+    onSubmit: (record: HealthRecord) => Promise<void>;
     initialData?: HealthRecord | null;
     userName: string;
+}
+initialData ?: HealthRecord | null;
+userName: string;
 }
 
 export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmit, initialData, userName }) => {
@@ -36,6 +40,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
     const [noteDraft, setNoteDraft] = useState<NoteContent>({});
     const [exerciseDuration, setExerciseDuration] = useState<string>('');
     const [customExercise, setCustomExercise] = useState<string>('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (initialData) {
@@ -79,8 +84,9 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
         // Re-serialize details
         const finalizedDetails = JSON.stringify(details);
 
@@ -89,7 +95,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
             ? JSON.stringify(noteDraft)
             : undefined;
 
-        onSubmit({
+        await onSubmit({
             id: initialData?.id,
             name: userName,
             timestamp: new Date(formData.timestamp!).toISOString(),
@@ -109,6 +115,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
             weather: formData.weather,
             noteContent: finalizedNoteContent
         });
+        setIsSubmitting(false);
         onClose();
     };
 
@@ -548,14 +555,19 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                             <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
                                 <button
                                     type="submit"
-                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-teal-600 text-base font-medium text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 sm:col-start-2 sm:text-sm"
+                                    disabled={isSubmitting}
+                                    className={clsx(
+                                        "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 sm:col-start-2 sm:text-sm",
+                                        isSubmitting ? "bg-teal-400 cursor-not-allowed" : "bg-teal-600 hover:bg-teal-700"
+                                    )}
                                 >
                                     <Save className="h-5 w-5 mr-2" />
-                                    儲存
+                                    {isSubmitting ? '儲存中...' : '儲存'}
                                 </button>
                                 <button
                                     type="button"
-                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                                    disabled={isSubmitting}
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 sm:mt-0 sm:col-start-1 sm:text-sm disabled:opacity-50"
                                     onClick={onClose}
                                 >
                                     取消

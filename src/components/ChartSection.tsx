@@ -40,11 +40,12 @@ interface ChartSectionProps {
     thresholds?: HealthThresholds;
     showThresholds?: boolean;
     showAuxiliaryLines?: boolean;
+    auxiliaryLineMode?: 'y-axis' | 'x-axis';
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis' }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -205,21 +206,50 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- Weight Chart Logic ---
     const weightYMax = Math.max(...filteredRecords.map(r => r.weight || 0), activeThresholds.weightHigh || 70) + 5;
+
+    // Calculate validity count for fallback logic
+    const validWeightCount = filteredRecords.filter(r => (r.weight ?? 0) > 0).length;
+
+    // Helper: Determine effective color for a record (Priority: Exercise > Other Note)
+    const getWeightColor = (index: number): string | null => {
+        const r = filteredRecords[index];
+        if (!r.noteContent) return weightColorMap.get(index) || null;
+        if (r.noteContent.includes('"type":"resistance"')) return 'rgba(239, 68, 68, 1)'; // Red
+        if (r.noteContent.includes('"type":"cycling"')) return 'rgba(249, 115, 22, 1)'; // Orange
+        if (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) return 'rgba(16, 185, 129, 1)'; // Green
+        return weightColorMap.get(index) || null;
+    };
+
+    // Modified Aux Bar Creator: Hides if mode is X-axis AND we have lines (>=2 points)
+    const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, validCount: number) => {
+        if (!showAuxiliaryLines) return null;
+        // If mode is x-axis only show bar if ISOLATED (count < 2)
+        if (auxiliaryLineMode === 'x-axis' && validCount >= 2) return null;
+
+        return {
+            label: label,
+            data: filteredRecords.map(r => condition(r) ? yMax : null),
+            backgroundColor: color,
+            type: 'bar' as const,
+            barThickness: 2,
+            order: 1000
+        };
+    };
+
     const weightPointColors = filteredRecords.map((r, i) => {
         if ((r.weight ?? 0) <= 0) return 'rgb(53, 162, 235)';
+        // Point color matches segment color in X-axis mode? Or keep specific point logic?
+        // Let's keep existing logic but allow override if segment dictates?
+        // Actually, existing point logic only colors for 'Other Note'. Exercise doesn't color points in original code.
         return weightColorMap.get(i) || 'rgb(53, 162, 235)';
-    });
-    const weightPointRadii = filteredRecords.map((r, i) => {
-        if ((r.weight ?? 0) <= 0) return 4;
-        return weightColorMap.has(i) ? 6 : 4;
     });
 
     const weightData = {
         labels,
         datasets: [
-            createAuxBar('阻力訓練', 'rgba(239, 68, 68, 0.5)', (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax),
-            createAuxBar('腳踏車', 'rgba(249, 115, 22, 0.5)', (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax),
-            createAuxBar('健走/其他', 'rgba(16, 185, 129, 0.5)', (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax),
+            createSmartAuxBar('阻力訓練', 'rgba(239, 68, 68, 0.5)', (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, validWeightCount),
+            createSmartAuxBar('腳踏車', 'rgba(249, 115, 22, 0.5)', (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, validWeightCount),
+            createSmartAuxBar('健走/其他', 'rgba(16, 185, 129, 0.5)', (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, validWeightCount),
             {
                 label: '體重 (kg)',
                 data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
@@ -230,8 +260,16 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 fill: true,
                 spanGaps: true,
                 tension: 0.4,
-                type: 'line',
-                order: 1
+                type: 'line' as const,
+                order: 1,
+                segment: {
+                    borderColor: (ctx: any) => {
+                        if (auxiliaryLineMode !== 'x-axis') return undefined; // Use default borderColor
+                        // Use p0 (start point) to determine segment color
+                        const color = getWeightColor(ctx.p0.parsed.x);
+                        return color || 'rgb(53, 162, 235)';
+                    }
+                }
             },
             createThresholdLine(activeThresholds.weightHigh, '體重高標', 'rgba(255, 99, 132, 0.8)'),
             createThresholdLine(activeThresholds.weightLow, '體重低標', 'rgba(255, 159, 64, 0.8)')
@@ -240,22 +278,74 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- BP Chart Logic ---
     const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
+    const validBPCount = filteredRecords.filter(r => (r.systolic ?? 0) > 0).length;
+    const validHRCount = filteredRecords.filter(r => (r.heartRate ?? 0) > 0).length;
+
+    // Helper: Weather color for BP
+    const getBPColor = (index: number): string | null => {
+        const r = filteredRecords[index];
+        if (r.weather === 'hot') return 'rgba(239, 68, 68, 1)';
+        if (r.weather === 'cold') return 'rgba(59, 130, 246, 1)';
+        return null;
+    };
+    // Helper: Heart Rate color (currently only Other Note)
+    const getHRColor = (index: number): string | null => hrColorMap.get(index) || null;
+
     const hrPointColors = filteredRecords.map((r, i) => {
         if ((r.heartRate ?? 0) <= 0) return 'rgb(153, 102, 255)';
         return hrColorMap.get(i) || 'rgb(153, 102, 255)';
     });
+
+    // ... existing radii logic ...
     const hrPointRadii = filteredRecords.map((r, i) => {
         if ((r.heartRate ?? 0) <= 0) return 4;
         return hrColorMap.has(i) ? 6 : 4;
     });
+
     const bpData = {
         labels,
         datasets: [
-            createAuxBar('天氣(熱)', 'rgba(239, 68, 68, 0.3)', (r) => r.weather === 'hot', bpYMax),
-            createAuxBar('天氣(冷)', 'rgba(59, 130, 246, 0.3)', (r) => r.weather === 'cold', bpYMax),
-            { label: '收縮壓', data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null), borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.5)', spanGaps: true, type: 'line', order: 1 },
-            { label: '舒張壓', data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.5)', spanGaps: true, type: 'line', order: 1 },
-            { label: '心跳', data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', pointBackgroundColor: hrPointColors, pointRadius: hrPointRadii, spanGaps: true, borderDash: [5, 5], type: 'line', order: 1 },
+            createSmartAuxBar('天氣(熱)', 'rgba(239, 68, 68, 0.3)', (r) => r.weather === 'hot', bpYMax, validBPCount),
+            createSmartAuxBar('天氣(冷)', 'rgba(59, 130, 246, 0.3)', (r) => r.weather === 'cold', bpYMax, validBPCount),
+            {
+                label: '收縮壓',
+                data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                spanGaps: true,
+                type: 'line' as const,
+                order: 1,
+                segment: {
+                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(255, 99, 132)'
+                }
+            },
+            {
+                label: '舒張壓',
+                data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                spanGaps: true,
+                type: 'line' as const,
+                order: 1,
+                segment: {
+                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(75, 192, 192)'
+                }
+            },
+            {
+                label: '心跳',
+                data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null),
+                borderColor: 'rgb(153, 102, 255)',
+                backgroundColor: 'rgba(153, 102, 255, 0.5)',
+                pointBackgroundColor: hrPointColors,
+                pointRadius: hrPointRadii,
+                spanGaps: true,
+                borderDash: [5, 5],
+                type: 'line' as const,
+                order: 1,
+                segment: {
+                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getHRColor(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
+                }
+            },
             createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
             createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)')
         ].filter(Boolean) as any[]
@@ -263,6 +353,17 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- Glucose Chart Logic ---
     const glucoseYMax = Math.max(...filteredRecords.map(r => Math.max(r.glucoseFasting || 0, r.glucosePostMeal || 0, r.glucoseRandom || 0)), 200) + 20;
+    const validGlucoseCount = filteredRecords.filter(r => (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0).length;
+
+    const getGlucoseColorHelper = (index: number): string | null => {
+        const r = filteredRecords[index];
+        if (!r.noteContent) return glucoseColorMap.get(index) || null;
+        if (r.noteContent.includes('"bigMeal"')) return 'rgba(239, 68, 68, 1)';
+        if (r.noteContent.includes('"dieting"')) return 'rgba(16, 185, 129, 1)';
+        if (r.noteContent.includes('"fasting"')) return 'rgba(139, 92, 246, 1)';
+        return glucoseColorMap.get(index) || null;
+    };
+
     const glucoseFastingColors = filteredRecords.map((r, i) => {
         if ((r.glucoseFasting ?? 0) <= 0) return 'rgb(255, 159, 64)';
         return glucoseColorMap.get(i) || 'rgb(255, 159, 64)';
@@ -284,12 +385,51 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const glucoseData = {
         labels,
         datasets: [
-            createAuxBar('大餐', 'rgba(239, 68, 68, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax),
-            createAuxBar('節食', 'rgba(16, 185, 129, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax),
-            createAuxBar('斷食', 'rgba(139, 92, 246, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax),
-            { label: '空腹血糖', data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null), borderColor: 'rgb(255, 159, 64)', backgroundColor: 'rgba(255, 159, 64, 0.5)', pointBackgroundColor: glucoseFastingColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
-            { label: '飯後血糖', data: filteredRecords.map(r => (r.glucosePostMeal ?? 0) > 0 ? r.glucosePostMeal : null), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', pointBackgroundColor: glucosePostMealColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
-            { label: '臨時血糖', data: filteredRecords.map(r => (r.glucoseRandom ?? 0) > 0 ? r.glucoseRandom : null), borderColor: 'rgb(201, 203, 207)', backgroundColor: 'rgba(201, 203, 207, 0.5)', pointBackgroundColor: glucoseRandomColors, pointRadius: glucosePointRadii, spanGaps: true, type: 'line', order: 1 },
+            createSmartAuxBar('大餐', 'rgba(239, 68, 68, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax, validGlucoseCount),
+            createSmartAuxBar('節食', 'rgba(16, 185, 129, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax, validGlucoseCount),
+            createSmartAuxBar('斷食', 'rgba(139, 92, 246, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax, validGlucoseCount),
+            {
+                label: '空腹血糖',
+                data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null),
+                borderColor: 'rgb(255, 159, 64)',
+                backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                pointBackgroundColor: glucoseFastingColors,
+                pointRadius: glucosePointRadii,
+                spanGaps: true,
+                type: 'line' as const,
+                order: 1,
+                segment: {
+                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(255, 159, 64)'
+                }
+            },
+            {
+                label: '飯後血糖',
+                data: filteredRecords.map(r => (r.glucosePostMeal ?? 0) > 0 ? r.glucosePostMeal : null),
+                borderColor: 'rgb(153, 102, 255)',
+                backgroundColor: 'rgba(153, 102, 255, 0.5)',
+                pointBackgroundColor: glucosePostMealColors,
+                pointRadius: glucosePointRadii,
+                spanGaps: true,
+                type: 'line' as const,
+                order: 1,
+                segment: {
+                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
+                }
+            },
+            {
+                label: '臨時血糖',
+                data: filteredRecords.map(r => (r.glucoseRandom ?? 0) > 0 ? r.glucoseRandom : null),
+                borderColor: 'rgb(201, 203, 207)',
+                backgroundColor: 'rgba(201, 203, 207, 0.5)',
+                pointBackgroundColor: glucoseRandomColors,
+                pointRadius: glucosePointRadii,
+                spanGaps: true,
+                type: 'line' as const,
+                order: 1,
+                segment: {
+                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(201, 203, 207)'
+                }
+            },
             createThresholdLine(activeThresholds.fastingHigh, '空腹高標', 'rgba(255, 159, 64, 0.6)'),
             createThresholdLine(activeThresholds.postMealHigh, '飯後高標', 'rgba(153, 102, 255, 0.6)')
         ].filter(Boolean) as any[]

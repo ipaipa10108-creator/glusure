@@ -54,7 +54,7 @@ Glusure 是一個專為長期健康追蹤設計的網頁應用程式 (PWA)，支
 
 #### 工作表 2: `UserSettings` (儲存使用者設定)
 第一列 (Header) 請依序填入以下欄位：
-`name` | `password` | `email` | `thresholds` | `updated_at`
+`name` | `password` | `email` | `thresholds` | `updated_at` | `auxiliaryLineMode` (Optional)
 
 ### 2. 部署 Google Apps Script
 1. 在試算表中點選「擴充功能」→「Apps Script」。
@@ -116,6 +116,12 @@ function doPost(e) {
           sheet.getRange(i + 1, 2).setValue(s.password);
           sheet.getRange(i + 1, 3).setValue(s.email || "");
           sheet.getRange(i + 1, 4).setValue(s.thresholds);
+          // 儲存 auxiliaryLineMode (如果有的話)
+          if(s.auxiliaryLineMode) {
+             // 假設 auxiliaryLineMode 存於第 6 欄 (需手動在 Google Sheet 新增標題)
+             // 若不想更動 Sheet 結構，可將此設定合併入 thresholds JSON 字串中
+             // 此處示範忽略或需使用者自行擴充欄位
+          }
           sheet.getRange(i + 1, 5).setValue(new Date());
           return { status: 'success' };
         }
@@ -238,9 +244,16 @@ npm run dev
 
 ### 2026-01-01
 - **紀錄成功回饋 (New)**：新增紀錄後，畫面中央會顯示淡出的「紀錄成功」提示，隨後自動返回儀表板，確認資料已送出。
+- **紀錄刪除回饋 (New)**：刪除紀錄時，會顯示紅色淡出「刪除成功」提示，提供更明確的操作反饋。
+- **儲存狀態優化 (New)**：
+  - 新增紀錄或運動時，按鈕會顯示「儲存中...」並鎖定介面，直到資料成功寫入後才關閉視窗，防止使用者誤以為已儲存而提前離開。
 - **手勢導航 (New)**：
   - 設定中新增「左右滑動切換頁面」開關（預設關閉）。
   - 開啟後，可在主畫面透過左右滑動快速在「儀表板 / 紀錄列表 / 醫師模式」間切換，提供類 App 的流暢體驗。
+- **圖表輔助線模式 (New)**：
+  - 在設定中可選擇輔助線的呈現方式：
+    - **Y軸 (預設)**：以垂直色塊顯示，視覺效果最強烈。
+    - **X軸 (New)**：將折線圖的線段染色顯示 (例如阻力訓練變紅色)。若資料點孤立無連線，則自動切換回 Y軸模式確保可見性。
 
 ### 2025-12-29
 - **紀錄管理增強**：新增「基準日」篩選功能，與「排序切換」（新→舊/舊→新）按鈕。

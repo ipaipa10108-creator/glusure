@@ -233,6 +233,7 @@ function App() {
                             onSaveRecord={handleSubmitRecord}
                             onUpdateSettings={handleUpdateSettings}
                             showSuccessFeedback={showSuccessFeedback}
+                            auxiliaryLineMode={user.auxiliaryLineMode}
                         />
                     )}
 

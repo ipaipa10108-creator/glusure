@@ -14,6 +14,7 @@ interface DashboardProps {
     onSaveRecord: (record: HealthRecord) => Promise<void>;
     onUpdateSettings: (settings: Partial<UserSettings>) => Promise<void>;
     showSuccessFeedback?: boolean;
+    auxiliaryLineMode?: 'y-axis' | 'x-axis';
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -23,7 +24,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onEditRecord,
     onSaveRecord,
     onUpdateSettings,
-    showSuccessFeedback
+    showSuccessFeedback,
+    auxiliaryLineMode
 }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('month');
     const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -195,6 +197,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 thresholds={userSettings?.thresholds}
                 showThresholds={showThresholds}
                 showAuxiliaryLines={showAuxiliaryLines}
+                auxiliaryLineMode={auxiliaryLineMode}
             />
 
             {/* Exercise Modal */}

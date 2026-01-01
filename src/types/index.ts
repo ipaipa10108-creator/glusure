@@ -59,6 +59,7 @@ export interface UserSettings {
     showAlertLines?: boolean;
     showAuxiliaryLines?: boolean;
     enableSwipeNav?: boolean;
+    auxiliaryLineMode?: 'y-axis' | 'x-axis';
 }
 
 export const DEFAULT_THRESHOLDS: HealthThresholds = {
