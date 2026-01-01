@@ -343,7 +343,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({
         datasets: [
             {
                 label: '血糖 (mg/dL)',
-                data: filteredRecords.map(r => r.glucose),
+                data: filteredRecords.map(r => r.glucoseFasting ?? r.glucosePostMeal ?? r.glucoseRandom ?? null),
                 borderColor: 'rgb(255, 206, 86)',
                 backgroundColor: 'rgba(255, 206, 86, 0.5)',
                 yAxisID: 'y',
