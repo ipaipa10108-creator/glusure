@@ -13,6 +13,7 @@ interface DashboardProps {
     onEditRecord: (record: HealthRecord) => void;
     onSaveRecord: (record: HealthRecord) => Promise<void>;
     onUpdateSettings: (settings: Partial<UserSettings>) => Promise<void>;
+    showSuccessFeedback?: boolean;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -21,7 +22,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onAddRecord,
     onEditRecord,
     onSaveRecord,
-    onUpdateSettings
+    onUpdateSettings,
+    showSuccessFeedback
 }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('month');
     const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -69,7 +71,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }, [userSettings]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 relative">
+            {/* Success Feedback Overlay */}
+            {showSuccessFeedback && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                    <div className="bg-white/90 px-8 py-4 rounded-full shadow-2xl border-2 border-green-100 animate-fade-out-up">
+                        <span className="text-2xl font-bold text-green-600 tracking-wider">紀錄成功</span>
+                    </div>
+                </div>
+            )}
+
             {/* Alert Section */}
             {hasWeightAlert && (
                 <div className="bg-red-50 border-l-4 border-red-500 p-4">

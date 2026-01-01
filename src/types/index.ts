@@ -58,6 +58,7 @@ export interface UserSettings {
     thresholds?: HealthThresholds;
     showAlertLines?: boolean;
     showAuxiliaryLines?: boolean;
+    enableSwipeNav?: boolean;
 }
 
 export const DEFAULT_THRESHOLDS: HealthThresholds = {

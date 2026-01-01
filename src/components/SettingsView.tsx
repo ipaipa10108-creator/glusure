@@ -116,6 +116,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                     onChange={(e) => onUpdate({ ...user, showAuxiliaryLines: e.target.checked })}
                                 />
                             </label>
+
+                            <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 sm:col-span-2">
+                                <span className="text-sm text-gray-700">啟用左右滑動切換頁面 (儀表板/紀錄/醫師模式)</span>
+                                <input
+                                    type="checkbox"
+                                    className="h-5 w-5 text-teal-600 rounded border-gray-300 focus:ring-teal-500"
+                                    checked={user.enableSwipeNav === true} // Default to false
+                                    onChange={(e) => onUpdate({ ...user, enableSwipeNav: e.target.checked })}
+                                />
+                            </label>
                         </div>
                     </section >
 

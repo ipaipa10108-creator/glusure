@@ -1,3 +1,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  @keyframes fadeOutUp {
+    0% { opacity: 1; transform: translateY(0) scale(0.95); }
+    10% { opacity: 1; transform: translateY(0) scale(1); }
+    70% { opacity: 1; transform: translateY(-10px); }
+    100% { opacity: 0; transform: translateY(-30px); }
+  }
+  .animate-fade-out-up {
+    animation: fadeOutUp 2.5s ease-in-out forwards;
+  }
+}

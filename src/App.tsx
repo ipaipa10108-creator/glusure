@@ -99,6 +99,41 @@ function App() {
         setRecords([]);
     };
 
+    const [showSuccessFeedback, setShowSuccessFeedback] = useState(false);
+
+    // Swipe Navigation Logic
+    const [touchStart, setTouchStart] = useState<number | null>(null);
+    const [touchEnd, setTouchEnd] = useState<number | null>(null);
+    const minSwipeDistance = 50;
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null);
+        setTouchStart(e.targetTouches[0].clientX);
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        setTouchEnd(e.targetTouches[0].clientX);
+    };
+
+    const onTouchEnd = () => {
+        if (!touchStart || !touchEnd) return;
+        if (!user?.enableSwipeNav) return;
+
+        const distance = touchStart - touchEnd;
+        const isLeftSwipe = distance > minSwipeDistance;
+        const isRightSwipe = distance < -minSwipeDistance;
+
+        if (isLeftSwipe) {
+            // Swipe Left: Next View (Dashboard -> List -> Physician)
+            if (viewMode === 'dashboard') setViewMode('list');
+            else if (viewMode === 'list') setViewMode('physician');
+        } else if (isRightSwipe) {
+            // Swipe Right: Prev View (Physician -> List -> Dashboard)
+            if (viewMode === 'physician') setViewMode('list');
+            else if (viewMode === 'list') setViewMode('dashboard');
+        }
+    };
+
     const handleSubmitRecord = async (record: HealthRecord) => {
         if (record.id) {
             await updateRecord(record);
@@ -107,7 +142,11 @@ function App() {
         }
         await loadData();
         setEditingRecord(null);
+        setShowSuccessFeedback(true);
+        setTimeout(() => setShowSuccessFeedback(false), 3000);
     };
+
+    // ... existing handlers ...
 
     const handleEditRecord = (record: HealthRecord) => {
         setEditingRecord(record);
@@ -144,95 +183,103 @@ function App() {
     }
 
     return (
-        <Layout userName={user.name} onLogout={handleLogout} onSettings={() => setViewMode('settings')}>
-            {/* View Switcher */}
-            <div className="flex justify-center mb-6 space-x-2 sm:space-x-4">
-                <button
-                    onClick={() => setViewMode('dashboard')}
-                    className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'dashboard' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
-                        }`}
-                >
-                    <Activity className="w-4 h-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">健康</span>儀表板
-                </button>
-                <button
-                    onClick={() => setViewMode('list')}
-                    className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
-                        }`}
-                >
-                    <Edit3 className="w-4 h-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">編輯</span>紀錄
-                </button>
-                <button
-                    onClick={() => setViewMode('physician')}
-                    className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'physician' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
-                        }`}
-                >
-                    <Stethoscope className="w-4 h-4 mr-1 sm:mr-2" />
-                    醫師模式
-                </button>
-            </div>
+        <div
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            className="min-h-screen"
+        >
+            <Layout userName={user.name} onLogout={handleLogout} onSettings={() => setViewMode('settings')}>
+                {/* View Switcher */}
+                <div className="flex justify-center mb-6 space-x-2 sm:space-x-4">
+                    <button
+                        onClick={() => setViewMode('dashboard')}
+                        className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'dashboard' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
+                            }`}
+                    >
+                        <Activity className="w-4 h-4 mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">健康</span>儀表板
+                    </button>
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
+                            }`}
+                    >
+                        <Edit3 className="w-4 h-4 mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">編輯</span>紀錄
+                    </button>
+                    <button
+                        onClick={() => setViewMode('physician')}
+                        className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'physician' ? 'bg-teal-100 text-teal-700' : 'bg-white text-gray-600 hover:bg-gray-50'
+                            }`}
+                    >
+                        <Stethoscope className="w-4 h-4 mr-1 sm:mr-2" />
+                        醫師模式
+                    </button>
+                </div>
 
 
-            {/* Main Content */}
-            <div className="animate-fade-in">
-                {viewMode === 'dashboard' && (
-                    <Dashboard
-                        records={records}
-                        userSettings={user}
-                        onAddRecord={() => {
-                            setEditingRecord(null);
-                            setIsFormOpen(true);
-                        }}
-                        onEditRecord={handleEditRecord}
-                        onSaveRecord={handleSubmitRecord}
-                        onUpdateSettings={handleUpdateSettings}
-                    />
-                )}
+                {/* Main Content */}
+                <div className="animate-fade-in">
+                    {viewMode === 'dashboard' && (
+                        <Dashboard
+                            records={records}
+                            userSettings={user}
+                            onAddRecord={() => {
+                                setEditingRecord(null);
+                                setIsFormOpen(true);
+                            }}
+                            onEditRecord={handleEditRecord}
+                            onSaveRecord={handleSubmitRecord}
+                            onUpdateSettings={handleUpdateSettings}
+                            showSuccessFeedback={showSuccessFeedback}
+                        />
+                    )}
 
-                {viewMode === 'list' && (
-                    <RecordList
-                        records={records}
-                        onEdit={handleEditRecord}
-                        onDelete={handleDeleteRecord}
-                        thresholds={user.thresholds}
-                    />
-                )}
+                    {viewMode === 'list' && (
+                        <RecordList
+                            records={records}
+                            onEdit={handleEditRecord}
+                            onDelete={handleDeleteRecord}
+                            thresholds={user.thresholds}
+                        />
+                    )}
 
-                {viewMode === 'physician' && (
-                    <PhysicianView records={records} userSettings={user} />
-                )}
+                    {viewMode === 'physician' && (
+                        <PhysicianView records={records} userSettings={user} />
+                    )}
 
-                {viewMode === 'settings' && (
-                    <SettingsView
-                        user={user}
-                        onBack={() => setViewMode('dashboard')}
-                        onUpdate={(newSettings) => {
-                            setUser(newSettings);
-                            // Update Local Storage to persist changes across reloads
-                            const savedUser = localStorage.getItem('glusure_user_full');
-                            if (savedUser) {
-                                const parsed = JSON.parse(savedUser);
-                                const updatedUser = { ...parsed, ...newSettings };
-                                localStorage.setItem('glusure_user_full', JSON.stringify(updatedUser));
-                            }
-                        }}
-                    />
-                )}
-            </div>
+                    {viewMode === 'settings' && (
+                        <SettingsView
+                            user={user}
+                            onBack={() => setViewMode('dashboard')}
+                            onUpdate={(newSettings) => {
+                                setUser(newSettings);
+                                // Update Local Storage to persist changes across reloads
+                                const savedUser = localStorage.getItem('glusure_user_full');
+                                if (savedUser) {
+                                    const parsed = JSON.parse(savedUser);
+                                    const updatedUser = { ...parsed, ...newSettings };
+                                    localStorage.setItem('glusure_user_full', JSON.stringify(updatedUser));
+                                }
+                            }}
+                        />
+                    )}
+                </div>
 
-            {/* Record Form Modal */}
-            <RecordForm
-                isOpen={isFormOpen}
-                onClose={() => {
-                    setIsFormOpen(false);
-                    setEditingRecord(null);
-                }}
-                onSubmit={handleSubmitRecord}
-                initialData={editingRecord}
-                userName={user.name}
-            />
-        </Layout>
+                {/* Record Form Modal */}
+                <RecordForm
+                    isOpen={isFormOpen}
+                    onClose={() => {
+                        setIsFormOpen(false);
+                        setEditingRecord(null);
+                    }}
+                    onSubmit={handleSubmitRecord}
+                    initialData={editingRecord}
+                    userName={user.name}
+                />
+            </Layout>
+        </div>
     );
 }
 
