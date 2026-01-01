@@ -198,28 +198,39 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const validWeightCount = filteredRecords.filter(r => (r.weight ?? 0) > 0).length;
 
     // Helper: Determine effective color for a record (Priority: Exercise > Other Note)
+    // Use darker red for resistance training for better visibility
+    const RESISTANCE_COLOR = 'rgba(185, 28, 28, 1)'; // Darker red
+    const CYCLING_COLOR = 'rgba(249, 115, 22, 1)'; // Orange
+    const WALKING_COLOR = 'rgba(16, 185, 129, 1)'; // Green
+
     const getWeightColor = (index: number): string | null => {
         const r = filteredRecords[index];
         if (!r.noteContent) return weightColorMap.get(index) || null;
-        if (r.noteContent.includes('"type":"resistance"')) return 'rgba(239, 68, 68, 1)'; // Red
-        if (r.noteContent.includes('"type":"cycling"')) return 'rgba(249, 115, 22, 1)'; // Orange
-        if (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) return 'rgba(16, 185, 129, 1)'; // Green
+        if (r.noteContent.includes('"type":"resistance"')) return RESISTANCE_COLOR;
+        if (r.noteContent.includes('"type":"cycling"')) return CYCLING_COLOR;
+        if (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) return WALKING_COLOR;
         return weightColorMap.get(index) || null;
     };
 
-    // Modified Aux Bar Creator: Hides if mode is X-axis AND we have lines (>=2 points)
+    // Modified Aux Bar Creator: In X-axis mode, still show legend but with hidden data
     const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, validCount: number) => {
         if (!showAuxiliaryLines) return null;
-        // If mode is x-axis only show bar if ISOLATED (count < 2)
-        if (auxiliaryLineMode === 'x-axis' && validCount >= 2) return null;
+
+        // In X-axis mode with >=2 points: keep legend but hide actual bars
+        const isXAxisModeWithLines = auxiliaryLineMode === 'x-axis' && validCount >= 2;
 
         return {
             label: label,
-            data: filteredRecords.map(r => condition(r) ? yMax : null),
+            // Show data only in Y-axis mode or when isolated
+            data: isXAxisModeWithLines
+                ? filteredRecords.map(() => null) // No bars but legend visible
+                : filteredRecords.map(r => condition(r) ? yMax : null),
             backgroundColor: color,
             type: 'bar' as const,
             barThickness: 2,
-            order: 1000
+            order: 1000,
+            // Hide from tooltip in X-axis mode
+            hidden: false
         };
     };
 
@@ -240,9 +251,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const weightData = {
         labels,
         datasets: [
-            createSmartAuxBar('阻力訓練', 'rgba(239, 68, 68, 0.5)', (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, validWeightCount),
-            createSmartAuxBar('腳踏車', 'rgba(249, 115, 22, 0.5)', (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, validWeightCount),
-            createSmartAuxBar('健走/其他', 'rgba(16, 185, 129, 0.5)', (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, validWeightCount),
+            createSmartAuxBar('阻力訓練', 'rgba(185, 28, 28, 0.6)', (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, validWeightCount),
+            createSmartAuxBar('腳踏車', 'rgba(249, 115, 22, 0.6)', (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, validWeightCount),
+            createSmartAuxBar('健走/其他', 'rgba(16, 185, 129, 0.6)', (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, validWeightCount),
             {
                 label: '體重 (kg)',
                 data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
@@ -255,10 +266,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 tension: 0.4,
                 type: 'line' as const,
                 order: 1,
+                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2, // Thicker line in X-axis mode
                 segment: {
                     borderColor: (ctx: any) => {
-                        if (auxiliaryLineMode !== 'x-axis') return undefined; // Use default borderColor
-                        // Use p0 (start point) to determine segment color
+                        if (auxiliaryLineMode !== 'x-axis') return undefined;
                         const color = getWeightColor(ctx.p0.parsed.x);
                         return color || 'rgb(53, 162, 235)';
                     }
@@ -297,8 +308,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const bpData = {
         labels,
         datasets: [
-            createSmartAuxBar('天氣(熱)', 'rgba(239, 68, 68, 0.3)', (r) => r.weather === 'hot', bpYMax, validBPCount),
-            createSmartAuxBar('天氣(冷)', 'rgba(59, 130, 246, 0.3)', (r) => r.weather === 'cold', bpYMax, validBPCount),
+            createSmartAuxBar('天氣(熱)', 'rgba(239, 68, 68, 0.4)', (r) => r.weather === 'hot', bpYMax, validBPCount),
+            createSmartAuxBar('天氣(冷)', 'rgba(59, 130, 246, 0.4)', (r) => r.weather === 'cold', bpYMax, validBPCount),
             {
                 label: '收縮壓',
                 data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
@@ -307,6 +318,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
+                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
                 segment: {
                     borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(255, 99, 132)'
                 }
@@ -319,6 +331,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
+                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
                 segment: {
                     borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(75, 192, 192)'
                 }
@@ -334,6 +347,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 borderDash: [5, 5],
                 type: 'line' as const,
                 order: 1,
+                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
                 segment: {
                     borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getHRColor(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
                 }
@@ -377,9 +391,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const glucoseData = {
         labels,
         datasets: [
-            createSmartAuxBar('大餐', 'rgba(239, 68, 68, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax, validGlucoseCount),
-            createSmartAuxBar('節食', 'rgba(16, 185, 129, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax, validGlucoseCount),
-            createSmartAuxBar('斷食', 'rgba(139, 92, 246, 0.3)', (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax, validGlucoseCount),
+            createSmartAuxBar('大餐', 'rgba(239, 68, 68, 0.4)', (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax, validGlucoseCount),
+            createSmartAuxBar('節食', 'rgba(16, 185, 129, 0.4)', (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax, validGlucoseCount),
+            createSmartAuxBar('斷食', 'rgba(139, 92, 246, 0.4)', (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax, validGlucoseCount),
             {
                 label: '空腹血糖',
                 data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null),
@@ -390,6 +404,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
+                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
                 segment: {
                     borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(255, 159, 64)'
                 }
@@ -404,6 +419,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
+                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
                 segment: {
                     borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
                 }
@@ -418,6 +434,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
+                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
                 segment: {
                     borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(201, 203, 207)'
                 }
