@@ -43,11 +43,13 @@ interface ChartSectionProps {
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
     alertPointColor?: string; // 超過警示線的資料點顏色
+    onToggleThresholds?: () => void;
+    onToggleAuxiliaryLines?: () => void;
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor, onToggleThresholds, onToggleAuxiliaryLines }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -613,7 +615,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
         return {
             responsive: true,
-            maintainAspectRatio: !fullscreenChart,
+            maintainAspectRatio: false, // Always false to respect container height
             interaction: { mode: 'index' as const, intersect: false },
             plugins: { legend: { position: 'top' as const } },
             scales: scales
@@ -662,20 +664,26 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
+                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition h-80">
                     <ExpandButton type="weight" />
-                    <h4 className="text-md font-medium text-gray-700 mb-4">體重趨勢 (點擊數值編輯)</h4>
-                    <Line ref={chartRefWeight} data={weightData} options={createOptions('weight')} {...bindClick(chartRefWeight)} />
+                    <h4 className="text-md font-medium text-gray-700 mb-2">體重趨勢 (點擊數值編輯)</h4>
+                    <div className="flex-1 w-full h-[calc(100%-2rem)]">
+                        <Line ref={chartRefWeight} data={weightData} options={createOptions('weight')} {...bindClick(chartRefWeight)} />
+                    </div>
                 </div>
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
+                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition h-80">
                     <ExpandButton type="bp" />
-                    <h4 className="text-md font-medium text-gray-700 mb-4">血壓變化 (點擊數值編輯)</h4>
-                    <Line ref={chartRefBP} data={bpData} options={createOptions('bp')} plugins={[pulsePressurePlugin]} {...bindClick(chartRefBP)} />
+                    <h4 className="text-md font-medium text-gray-700 mb-2">血壓變化 (點擊數值編輯)</h4>
+                    <div className="flex-1 w-full h-[calc(100%-2rem)]">
+                        <Line ref={chartRefBP} data={bpData} options={createOptions('bp')} plugins={[pulsePressurePlugin]} {...bindClick(chartRefBP)} />
+                    </div>
                 </div>
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 cursor-pointer hover:border-teal-200 transition">
+                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 cursor-pointer hover:border-teal-200 transition h-80">
                     <ExpandButton type="glucose" />
-                    <h4 className="text-md font-medium text-gray-700 mb-4">血糖紀錄 (點擊數值編輯)</h4>
-                    <Line ref={chartRefGlucose} data={glucoseData} options={createOptions('glucose')} {...bindClick(chartRefGlucose)} />
+                    <h4 className="text-md font-medium text-gray-700 mb-2">血糖紀錄 (點擊數值編輯)</h4>
+                    <div className="flex-1 w-full h-[calc(100%-2rem)]">
+                        <Line ref={chartRefGlucose} data={glucoseData} options={createOptions('glucose')} {...bindClick(chartRefGlucose)} />
+                    </div>
                 </div>
             </div>
 
@@ -685,6 +693,27 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                     <div className="flex items-center justify-between p-4 border-b border-gray-200">
                         <h2 className="text-lg font-bold text-gray-800">{chartTitles[fullscreenChart]}</h2>
                         <div className="flex items-center gap-4">
+                            {/* Toggles for Fullscreen */}
+                            <div className="flex items-center gap-2 mr-2">
+                                {onToggleThresholds && (
+                                    <button
+                                        onClick={onToggleThresholds}
+                                        className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs transition-all ${showThresholds ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                                    >
+                                        <div className={`w-2 h-2 rounded-full ${showThresholds ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                        警示線
+                                    </button>
+                                )}
+                                {onToggleAuxiliaryLines && (
+                                    <button
+                                        onClick={onToggleAuxiliaryLines}
+                                        className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs transition-all ${showAuxiliaryLines ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                                    >
+                                        <div className={`w-2 h-2 rounded-full ${showAuxiliaryLines ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                        輔助線
+                                    </button>
+                                )}
+                            </div>
                             <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">
                                 {ranges.map((range) => (
                                     <button

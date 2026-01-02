@@ -74,6 +74,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         }
     }, [userSettings]);
 
+    const handleToggleThresholds = () => {
+        const newValue = !showThresholds;
+        setShowThresholds(newValue);
+        onUpdateSettings({ showAlertLines: newValue });
+    };
+
+    const handleToggleAuxiliaryLines = () => {
+        const newValue = !showAuxiliaryLines;
+        setShowAuxiliaryLines(newValue);
+        onUpdateSettings({ showAuxiliaryLines: newValue });
+    };
+
     return (
         <div className="space-y-6 relative">
             {/* Success Feedback Overlay */}
@@ -160,11 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                     <div className="flex items-center gap-2 ml-2">
                         <button
-                            onClick={() => {
-                                const newValue = !showThresholds;
-                                setShowThresholds(newValue);
-                                onUpdateSettings({ showAlertLines: newValue });
-                            }}
+                            onClick={handleToggleThresholds}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${showThresholds ? 'bg-white border-teal-200 shadow-sm' : 'bg-gray-50 border-gray-200 opacity-75'}`}
                             title="顯示異常警示線"
                         >
@@ -172,11 +180,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             <span className="text-sm text-gray-600 font-medium">警示線</span>
                         </button>
                         <button
-                            onClick={() => {
-                                const newValue = !showAuxiliaryLines;
-                                setShowAuxiliaryLines(newValue);
-                                onUpdateSettings({ showAuxiliaryLines: newValue });
-                            }}
+                            onClick={handleToggleAuxiliaryLines}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${showAuxiliaryLines ? 'bg-white border-teal-200 shadow-sm' : 'bg-gray-50 border-gray-200 opacity-75'}`}
                             title="顯示輔助對照線"
                         >
@@ -202,6 +206,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 auxiliaryLineMode={auxiliaryLineMode}
                 auxiliaryColors={auxiliaryColors}
                 alertPointColor={userSettings?.alertPointColor}
+                onToggleThresholds={handleToggleThresholds}
+                onToggleAuxiliaryLines={handleToggleAuxiliaryLines}
             />
 
             {/* Exercise Modal */}
