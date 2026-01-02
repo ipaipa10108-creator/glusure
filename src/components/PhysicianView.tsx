@@ -422,8 +422,11 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                                 if (!latest && !weatherIcon) return <div className={clsx("h-8 rounded", bgClass, "opacity-20")}></div>;
 
                                                 const isHigh = latest && (latest.systolic > thresholds.systolicHigh || latest.diastolic > thresholds.diastolicHigh);
-                                                const isWide = latest && (latest.systolic - latest.diastolic > 60);
-                                                const isNarrow = latest && (latest.systolic - latest.diastolic < 30);
+                                                // 使用設定中的脈壓差閾值
+                                                const pulsePressure = latest ? latest.systolic - latest.diastolic : 0;
+                                                const ppHigh = thresholds.pulsePressureHigh ?? 60;
+                                                const ppLow = thresholds.pulsePressureLow ?? 30;
+                                                const isPulsePressureAbnormal = latest && (pulsePressure > ppHigh || pulsePressure < ppLow);
                                                 const hr = latest?.heartRate;
                                                 const isHrAbnormal = hr && (hr > 90 || hr < 60);
 
@@ -431,7 +434,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                                                     <div className={clsx(
                                                         "flex items-center justify-between p-1 rounded mb-1 last:mb-0 gap-1",
                                                         bgClass,
-                                                        (isWide || isNarrow) && "ring-1 ring-red-200"
+                                                        isPulsePressureAbnormal && "ring-2 ring-red-500"
                                                     )}>
                                                         <div className="flex items-center gap-1">
                                                             <span className="text-[10px] text-gray-400 w-5">{label}</span>

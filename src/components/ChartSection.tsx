@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { HealthRecord, TimeRange, HealthThresholds, AuxiliaryColors, DEFAULT_AUXILIARY_COLORS } from '../types';
+import { HealthRecord, TimeRange, HealthThresholds, AuxiliaryColors, DEFAULT_AUXILIARY_COLORS, DEFAULT_ALERT_POINT_COLOR } from '../types';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -42,11 +42,12 @@ interface ChartSectionProps {
     showAuxiliaryLines?: boolean;
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
+    alertPointColor?: string; // 超過警示線的資料點顏色
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -123,7 +124,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         };
     };
 
-    const activeThresholds = thresholds || { weightHigh: 0, weightLow: 0, systolicHigh: 140, diastolicHigh: 90, fastingHigh: 100, postMealHigh: 140 };
+    const activeThresholds = thresholds || { weightHigh: 0, weightLow: 0, systolicHigh: 140, diastolicHigh: 90, fastingHigh: 100, postMealHigh: 140, pulsePressureHigh: 60, pulsePressureLow: 30 };
+    const effectiveAlertColor = alertPointColor || DEFAULT_ALERT_POINT_COLOR;
 
     // --- Cross-record otherNote color mapping ---
     // 找出所有有 otherNote 的紀錄
@@ -280,6 +282,35 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
     const validBPCount = filteredRecords.filter(r => (r.systolic ?? 0) > 0).length;
 
+    // Helper: 判斷脈壓差是否超出範圍
+    const isPulsePressureAbnormal = (r: HealthRecord): boolean => {
+        if (r.systolic <= 0 || r.diastolic <= 0) return false;
+        const pulsePressure = r.systolic - r.diastolic;
+        return pulsePressure > activeThresholds.pulsePressureHigh || pulsePressure < activeThresholds.pulsePressureLow;
+    };
+
+    // 收縮壓點顏色：超過閾值用警示顏色
+    const systolicPointColors = filteredRecords.map(r => {
+        if (r.systolic <= 0) return 'rgb(255, 99, 132)';
+        if (r.systolic > activeThresholds.systolicHigh) return effectiveAlertColor;
+        return 'rgb(255, 99, 132)';
+    });
+
+    // 舒張壓點顏色：超過閾值用警示顏色
+    const diastolicPointColors = filteredRecords.map(r => {
+        if (r.diastolic <= 0) return 'rgb(75, 192, 192)';
+        if (r.diastolic > activeThresholds.diastolicHigh) return effectiveAlertColor;
+        return 'rgb(75, 192, 192)';
+    });
+
+    // 脈壓差異常點的半徑 (異常時放大)
+    const bpPointRadii = filteredRecords.map(r => {
+        if (r.systolic <= 0) return 4;
+        if (isPulsePressureAbnormal(r)) return 7;
+        if (r.systolic > activeThresholds.systolicHigh || r.diastolic > activeThresholds.diastolicHigh) return 6;
+        return 4;
+    });
+
     // Helper: Weather color for BP
     const getBPColor = (index: number): string | null => {
         const r = filteredRecords[index];
@@ -301,6 +332,36 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         return hrColorMap.has(i) ? 6 : 4;
     });
 
+    // 建立脈壓差異常虛線資料集 (只在警示線開啟時顯示)
+    const createPulsePressureAlertLines = () => {
+        if (!showThresholds) return [];
+
+        // 為每個脈壓差異常的點建立虛線連接收縮壓和舒張壓
+        const alertDatasets: any[] = [];
+
+        filteredRecords.forEach((r, index) => {
+            if (isPulsePressureAbnormal(r)) {
+                // 建立這個點的連線資料集
+                alertDatasets.push({
+                    label: index === filteredRecords.findIndex(rec => isPulsePressureAbnormal(rec)) ? '脈壓差異常' : '',
+                    data: filteredRecords.map((_, i) => {
+                        if (i !== index) return null;
+                        return [r.diastolic, r.systolic]; // 用於繪製垂直線
+                    }),
+                    borderColor: effectiveAlertColor,
+                    borderWidth: 2,
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    showLine: false,
+                    type: 'line' as const,
+                    order: 2,
+                });
+            }
+        });
+
+        return alertDatasets;
+    };
+
     const bpData = {
         labels,
         datasets: [
@@ -311,6 +372,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                pointBackgroundColor: systolicPointColors,
+                pointRadius: bpPointRadii,
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
@@ -324,6 +387,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null),
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                pointBackgroundColor: diastolicPointColors,
+                pointRadius: bpPointRadii,
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
@@ -349,7 +414,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 }
             },
             createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
-            createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)')
+            createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
+            ...createPulsePressureAlertLines()
         ].filter(Boolean) as any[]
     };
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { UserSettings, DEFAULT_THRESHOLDS, DEFAULT_AUXILIARY_COLORS, AuxiliaryColors } from '../types';
+import { UserSettings, DEFAULT_THRESHOLDS, DEFAULT_AUXILIARY_COLORS, AuxiliaryColors, DEFAULT_ALERT_POINT_COLOR } from '../types';
 import { updateUserSettings } from '../utils/api';
-import { Save, Lock, ChevronLeft, Mail } from 'lucide-react';
+import { Save, Lock, ChevronLeft, Mail, HelpCircle, X } from 'lucide-react';
 
 // Helper: Convert rgba to hex (for color input)
 const rgbaToHex = (rgba: string): string => {
@@ -33,6 +33,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
     const [thresholds, setThresholds] = useState(user.thresholds || DEFAULT_THRESHOLDS);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const [showHelp, setShowHelp] = useState(false);
 
     // Helper: Get current aux colors with defaults
     const getAuxColors = (): AuxiliaryColors => ({
@@ -75,9 +76,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
             </button>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center">
-                    <Lock className="w-5 h-5 mr-2 text-teal-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">帳號與設定</h3>
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                    <div className="flex items-center">
+                        <Lock className="w-5 h-5 mr-2 text-teal-600" />
+                        <h3 className="text-lg font-semibold text-gray-800">帳號與設定</h3>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowHelp(true)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-teal-600 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition-colors"
+                        title="使用說明"
+                    >
+                        <HelpCircle className="w-4 h-4" />
+                        <span>說明</span>
+                    </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-8">
@@ -379,6 +391,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                 </div>
                             </div>
 
+                            {/* 脈壓差閒值 */}
+                            <div className="space-y-4 p-4 bg-purple-50/50 rounded-xl border border-purple-100">
+                                <p className="text-xs font-bold text-purple-700 uppercase tracking-wider">脈壓差閒值 (收縮壓-舒張壓)</p>
+                                <div>
+                                    <label className="block text-xs text-gray-500 mb-1">高標 (> 此值警示)，預設 60</label>
+                                    <input
+                                        type="number"
+                                        className="w-full px-3 py-1.5 border border-gray-200 rounded-md"
+                                        value={thresholds.pulsePressureHigh}
+                                        onChange={(e) => handleThresholdChange('pulsePressureHigh', e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-500 mb-1">低標 (< 此值警示)，預設 30</label>
+                                    <input
+                                        type="number"
+                                        className="w-full px-3 py-1.5 border border-gray-200 rounded-md"
+                                        value={thresholds.pulsePressureLow}
+                                        onChange={(e) => handleThresholdChange('pulsePressureLow', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
                             <div className="space-y-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 sm:col-span-2">
                                 <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">體重觀察目標 (kg)</p>
                                 <div className="grid grid-cols-2 gap-4">
@@ -401,6 +436,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                         />
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* 超過警示點顏色設定 */}
+                            <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 sm:col-span-2">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm font-medium text-gray-700">超過警示線的資料點顏色</span>
+                                    <input
+                                        type="color"
+                                        className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                                        value={user.alertPointColor || DEFAULT_ALERT_POINT_COLOR}
+                                        onChange={(e) => onUpdate({ ...user, alertPointColor: e.target.value })}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => onUpdate({ ...user, alertPointColor: undefined })}
+                                        className="text-xs text-teal-600 hover:text-teal-800 underline"
+                                    >
+                                        恢復預設
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1">圖表上超過閒值的點會以此顏色顯示</p>
                             </div>
                         </div>
                     </section >
@@ -437,6 +493,82 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                     </div>
                 </form >
             </div >
+
+            {/* 使用說明 Modal */}
+            <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
         </div >
+    );
+};
+
+// 使用說明 Modal 組件 (內部使用)
+const HelpModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
+            <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+                <div className="px-6 py-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white flex justify-between items-center sticky top-0 z-10">
+                    <h4 className="font-bold text-lg">使用說明</h4>
+                    <button onClick={onClose} className="text-white/80 hover:text-white">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="p-6 space-y-6 text-sm text-gray-700">
+                    {/* 健康儀表板 */}
+                    <section>
+                        <h5 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                            <span className="text-xl">📊</span> 健康儀表板
+                        </h5>
+                        <ul className="space-y-1.5 ml-7 list-disc text-gray-600">
+                            <li>體重 / 血壓 / 血糖趨勢圖表，可放大至全螢幕</li>
+                            <li>開啟「警示線」顯示個人化閒值線</li>
+                            <li>開啟「輔助線」查看運動 / 天氣 / 飲食對照</li>
+                            <li>脈壓差異常時，血壓圖會以紅色虛線連接收縮壓與舒張壓</li>
+                        </ul>
+                    </section>
+
+                    {/* 紀錄管理 */}
+                    <section>
+                        <h5 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                            <span className="text-xl">📝</span> 紀錄管理
+                        </h5>
+                        <ul className="space-y-1.5 ml-7 list-disc text-gray-600">
+                            <li>新增 / 編輯健康數據（體重、血壓、心率、血糖）</li>
+                            <li>結構化備註：飲食 🥩 、運動 🚶 、天氣 ☀️ 、隨手記 📝</li>
+                            <li>點擊圖表資料點可快速編輯該筆紀錄</li>
+                        </ul>
+                    </section>
+
+                    {/* 醫師模式 */}
+                    <section>
+                        <h5 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                            <span className="text-xl">👨‍⚕️</span> 醫師模式
+                        </h5>
+                        <ul className="space-y-1.5 ml-7 list-disc text-gray-600">
+                            <li>日曆式每日彙整，白天 / 傍晚血壓分開顯示</li>
+                            <li>脈壓差異常時，日/夜血壓區塊顯示紅色邊框</li>
+                            <li>切換「簡易 / 詳細」模式查看更多細節</li>
+                        </ul>
+                    </section>
+
+                    {/* 設定 */}
+                    <section>
+                        <h5 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                            <span className="text-xl">⚙️</span> 設定
+                        </h5>
+                        <ul className="space-y-1.5 ml-7 list-disc text-gray-600">
+                            <li>自訂警示閒值（血壓、血糖、體重、脈壓差）</li>
+                            <li>自訂輔助線顏色與超過警示點顏色</li>
+                            <li>左右滑動切換頁面（可選功能）</li>
+                        </ul>
+                    </section>
+
+                    <div className="pt-4 border-t border-gray-200 text-center text-xs text-gray-400">
+                        Glusure - 你的個人健康追蹤助手
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 };

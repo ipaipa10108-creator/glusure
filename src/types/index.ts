@@ -47,6 +47,8 @@ export interface HealthThresholds {
     postMealHigh: number;
     weightHigh: number;
     weightLow: number;
+    pulsePressureHigh: number; // 脈壓差高標 (> 此值警示)
+    pulsePressureLow: number;  // 脈壓差低標 (< 此值警示)
 }
 
 export interface UserSettings {
@@ -61,6 +63,7 @@ export interface UserSettings {
     enableSwipeNav?: boolean;
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
+    alertPointColor?: string; // 超過警示線的資料點顏色
 }
 
 // Auxiliary Line Color Settings
@@ -96,6 +99,10 @@ export const DEFAULT_THRESHOLDS: HealthThresholds = {
     postMealHigh: 140,
     weightHigh: 0, // 0 means disable
     weightLow: 0,
+    pulsePressureHigh: 60, // 脈壓差 > 60 警示
+    pulsePressureLow: 30,  // 脈壓差 < 30 警示
 };
+
+export const DEFAULT_ALERT_POINT_COLOR = '#ef4444'; // 紅色
 
 export type TimeRange = 'week' | '2week' | 'month' | 'quarter' | 'halfYear' | 'year' | 'all';

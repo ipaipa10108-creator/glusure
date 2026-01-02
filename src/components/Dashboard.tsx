@@ -201,6 +201,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 showAuxiliaryLines={showAuxiliaryLines}
                 auxiliaryLineMode={auxiliaryLineMode}
                 auxiliaryColors={auxiliaryColors}
+                alertPointColor={userSettings?.alertPointColor}
             />
 
             {/* Exercise Modal */}
