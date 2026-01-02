@@ -395,7 +395,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                             <div className="space-y-4 p-4 bg-purple-50/50 rounded-xl border border-purple-100">
                                 <p className="text-xs font-bold text-purple-700 uppercase tracking-wider">脈壓差閒值 (收縮壓-舒張壓)</p>
                                 <div>
-                                    <label className="block text-xs text-gray-500 mb-1">高標 (> 此值警示)，預設 60</label>
+                                    <label className="block text-xs text-gray-500 mb-1">高標 (大於此值警示)，預設 60</label>
                                     <input
                                         type="number"
                                         className="w-full px-3 py-1.5 border border-gray-200 rounded-md"
@@ -404,7 +404,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs text-gray-500 mb-1">低標 (< 此值警示)，預設 30</label>
+                                    <label className="block text-xs text-gray-500 mb-1">低標 (小於此值警示)，預設 30</label>
                                     <input
                                         type="number"
                                         className="w-full px-3 py-1.5 border border-gray-200 rounded-md"
