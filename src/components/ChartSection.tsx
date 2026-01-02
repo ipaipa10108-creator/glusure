@@ -341,14 +341,17 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const pulsePressurePlugin = useMemo(() => ({
         id: 'pulsePressureLines',
         afterDatasetsDraw(chart: any) {
-            // Check if alert lines are enabled (showThresholds)
-            // Removed check for showThresholds to allow Pulse Pressure alerts to be always visible
-            // if (!showThresholds) return;
+            const { ctx } = chart;
 
-            const { ctx, scales: { x, y } } = chart;
+            // Find Systolic and Diastolic dataset indices
+            const datasets = chart.data.datasets;
+            const sysIndex = datasets.findIndex((d: any) => d.label === '收縮壓');
+            const diaIndex = datasets.findIndex((d: any) => d.label === '舒張壓');
 
-            // Safety check
-            if (!x || !y) return;
+            if (sysIndex === -1 || diaIndex === -1) return;
+
+            const sysMeta = chart.getDatasetMeta(sysIndex);
+            const diaMeta = chart.getDatasetMeta(diaIndex);
 
             ctx.save();
             ctx.beginPath();
@@ -358,15 +361,16 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
             filteredRecords.forEach((r, index) => {
                 if (isPulsePressureAbnormal(r)) {
-                    // Important: x.getPixelForValue(index) relies on data index matching label index
-                    const xPos = x.getPixelForValue(index);
-                    const ySys = y.getPixelForValue(r.systolic);
-                    const yDia = y.getPixelForValue(r.diastolic);
+                    // Use meta data points to ensure we draw exactly where the points are
+                    // Check if points exist at this index
+                    const sysPoint = sysMeta.data[index];
+                    const diaPoint = diaMeta.data[index];
 
-                    // Check bounds to ensure we don't draw outside chart area (though clip usually handles this)
-                    if (xPos >= chart.chartArea.left && xPos <= chart.chartArea.right) {
-                        ctx.moveTo(xPos, ySys);
-                        ctx.lineTo(xPos, yDia);
+                    if (sysPoint && diaPoint && !sysPoint.skip && !diaPoint.skip) {
+                        ctx.moveTo(sysPoint.x, sysPoint.y);
+                        // Draw vertical line to diastolic point
+                        // Use sysPoint.x for x-coordinate to ensure vertical alignment
+                        ctx.lineTo(sysPoint.x, diaPoint.y);
                     }
                 }
             });
@@ -547,26 +551,39 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         if (type === 'weight') {
             const values = filteredRecords.map(r => r.weight).filter(v => v > 0);
             if (values.length > 0) {
-                minVal = Math.min(...values) - 2;
-                maxVal = Math.max(...values) + 2;
+                minVal = Math.floor(Math.min(...values) - 2);
+                maxVal = Math.ceil(Math.max(...values) + 2);
             }
         } else if (type === 'bp') {
             const sys = filteredRecords.map(r => r.systolic).filter(v => v > 0);
             const dia = filteredRecords.map(r => r.diastolic).filter(v => v > 0);
-            if (sys.length > 0 && dia.length > 0) {
-                minVal = Math.min(...dia) - 10;
-                maxVal = Math.max(...sys) + 10;
+            const allBP = [...sys, ...dia];
+            if (allBP.length > 0) {
+                minVal = Math.floor(Math.min(...allBP) - 10);
+                maxVal = Math.ceil(Math.max(...allBP) + 10);
             }
         } else if (type === 'glucose') {
             const values = filteredRecords.flatMap(r => [r.glucoseFasting, r.glucosePostMeal, r.glucoseRandom]).filter(v => (v ?? 0) > 0) as number[];
             if (values.length > 0) {
-                minVal = Math.min(...values) - 10;
-                maxVal = Math.max(...values) + 10;
+                minVal = Math.floor(Math.min(...values) - 10);
+                maxVal = Math.ceil(Math.max(...values) + 10);
             }
         }
 
         // Ensure minVal is not negative unless data is negative (unlikely for health data)
+        // FORCE the scale to start at minVal (if calculated), preventing 0-start behavior
         if (minVal !== undefined && minVal < 0) minVal = 0;
+
+        const scaleOptions: any = {
+            type: 'linear' as const,
+            display: true,
+            position: 'left' as const,
+            beginAtZero: false,
+            grace: '5%',
+        };
+
+        if (minVal !== undefined) scaleOptions.min = minVal;
+        if (maxVal !== undefined) scaleOptions.max = maxVal;
 
         return {
             responsive: true,
@@ -574,15 +591,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             interaction: { mode: 'index' as const, intersect: false },
             plugins: { legend: { position: 'top' as const } },
             scales: {
-                y: {
-                    type: 'linear' as const,
-                    display: true,
-                    position: 'left' as const,
-                    beginAtZero: false,
-                    grace: '5%',
-                    suggestedMin: minVal,
-                    suggestedMax: maxVal
-                }
+                y: scaleOptions
             },
         };
     };
