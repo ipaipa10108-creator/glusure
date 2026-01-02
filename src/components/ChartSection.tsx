@@ -672,7 +672,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                         </div>
                     </div>
                     <div className="flex-1 p-4 overflow-auto">
-                        <Line data={getChartData(fullscreenChart)} options={{ ...options, maintainAspectRatio: false }} />
+                        <Line data={getChartData(fullscreenChart)} options={{ ...createOptions(fullscreenChart), maintainAspectRatio: false }} />
                     </div>
                 </div>
             )}
