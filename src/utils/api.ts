@@ -4,6 +4,13 @@ import { HealthRecord, GlucoseReading, UserSettings } from '../types';
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const getRecords = async (): Promise<HealthRecord[]> => {
+    // Helper to avoiding converting "" or null to 0
+    const parseOptionalNumber = (val: any) => {
+        if (val === '' || val === null || val === undefined) return undefined;
+        const num = Number(val);
+        return isNaN(num) ? undefined : num;
+    };
+
     if (!API_URL) {
         console.warn('VITE_API_URL is not defined, using localStorage fallback');
         const data = localStorage.getItem('glusure_data');
@@ -36,10 +43,10 @@ export const getRecords = async (): Promise<HealthRecord[]> => {
                 weight: Number(item.weight) || 0,
                 systolic: Number(item.systolic) || 0,
                 diastolic: Number(item.diastolic) || 0,
-                heartRate: Number(item.heart_rate) || 0,
-                glucoseFasting: Number(item.glucose_fasting) || 0,
-                glucosePostMeal: Number(item.glucose_post_meal) || 0,
-                glucoseRandom: Number(item.glucose_random) || 0,
+                heartRate: parseOptionalNumber(item.heart_rate),
+                glucoseFasting: parseOptionalNumber(item.glucose_fasting),
+                glucosePostMeal: parseOptionalNumber(item.glucose_post_meal),
+                glucoseRandom: parseOptionalNumber(item.glucose_random),
                 details: details,
                 note: item.note,
                 weather: item.weather,
@@ -72,6 +79,7 @@ export const saveRecord = async (record: HealthRecord): Promise<void> => {
     payload.record = {
         ...record,
         id: record.id || Date.now().toString(),
+        heartRate: record.heartRate === undefined ? '' : record.heartRate, // Explicitly send empty string if undefined to prevent GAS from defaulting to 0
         details: JSON.stringify(details)
     };
 
