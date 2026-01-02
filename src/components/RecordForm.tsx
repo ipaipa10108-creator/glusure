@@ -19,7 +19,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
         weight: 0,
         systolic: 0,
         diastolic: 0,
-        heartRate: 0,
+        heartRate: undefined,
         glucoseFasting: undefined,
         glucosePostMeal: undefined,
         glucoseRandom: undefined,
@@ -63,7 +63,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                 weight: 0,
                 systolic: 0,
                 diastolic: 0,
-                heartRate: 0,
+                heartRate: undefined,
                 glucoseFasting: undefined,
                 glucosePostMeal: undefined,
                 glucoseRandom: undefined,
@@ -98,7 +98,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
             weight: Number(formData.weight),
             systolic: Number(formData.systolic),
             diastolic: Number(formData.diastolic),
-            heartRate: Number(formData.heartRate),
+            heartRate: formData.heartRate ? Number(formData.heartRate) : undefined,
             // If user modified inputs, these take precedence. 
             // Merging logic in 'api.ts' handles adding NEW items to details,
             // but if we are editing an EXISTING combined record, we might want to update details?
@@ -509,7 +509,7 @@ export const RecordForm: React.FC<RecordFormProps> = ({ isOpen, onClose, onSubmi
                                         type="number"
                                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
                                         value={formData.heartRate || ''}
-                                        onChange={e => setFormData({ ...formData, heartRate: Number(e.target.value) })}
+                                        onChange={e => setFormData({ ...formData, heartRate: e.target.value ? Number(e.target.value) : undefined })}
                                         placeholder="bpm"
                                     />
                                 </div>
