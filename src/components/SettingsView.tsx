@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UserSettings, DEFAULT_THRESHOLDS, DEFAULT_AUXILIARY_COLORS, AuxiliaryColors, DEFAULT_ALERT_POINT_COLOR } from '../types';
 import { updateUserSettings } from '../utils/api';
-import { Save, Lock, ChevronLeft, Mail, HelpCircle, X } from 'lucide-react';
+import { Save, Lock, ChevronLeft, Mail, X } from 'lucide-react';
 
 // Helper: Convert rgba to hex (for color input)
 const rgbaToHex = (rgba: string): string => {
@@ -33,7 +33,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
     const [thresholds, setThresholds] = useState(user.thresholds || DEFAULT_THRESHOLDS);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
-    const [showHelp, setShowHelp] = useState(false);
 
     // Helper: Get current aux colors with defaults
     const getAuxColors = (): AuxiliaryColors => ({
@@ -485,8 +484,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                 </form >
             </div >
 
-            {/* 使用說明 Modal */}
-            <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
         </div >
     );
 };
