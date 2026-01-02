@@ -342,7 +342,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         id: 'pulsePressureLines',
         afterDatasetsDraw(chart: any) {
             // Check if alert lines are enabled (showThresholds)
-            if (!showThresholds) return;
+            // Removed check for showThresholds to allow Pulse Pressure alerts to be always visible
+            // if (!showThresholds) return;
 
             const { ctx, scales: { x, y } } = chart;
 
@@ -373,7 +374,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             ctx.stroke();
             ctx.restore();
         }
-    }), [filteredRecords, showThresholds, effectiveAlertColor, activeThresholds]); // Add dependencies to update when records/settings change
+    }), [filteredRecords, effectiveAlertColor, activeThresholds]);
 
     // 建立脈壓差異常虛線資料集 (僅用於顯示圖例)
     const createPulsePressureAlertDataset = () => {
@@ -538,20 +539,52 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         ].filter(Boolean) as any[]
     };
 
-    const options = {
-        responsive: true,
-        maintainAspectRatio: !fullscreenChart,
-        interaction: { mode: 'index' as const, intersect: false },
-        plugins: { legend: { position: 'top' as const } },
-        scales: {
-            y: {
-                type: 'linear' as const,
-                display: true,
-                position: 'left' as const,
-                beginAtZero: false,
-                grace: '5%'
+    const createOptions = (type: ChartType) => {
+        // Calculate min/max for explicit scaling
+        let minVal: number | undefined;
+        let maxVal: number | undefined;
+
+        if (type === 'weight') {
+            const values = filteredRecords.map(r => r.weight).filter(v => v > 0);
+            if (values.length > 0) {
+                minVal = Math.min(...values) - 2;
+                maxVal = Math.max(...values) + 2;
             }
-        },
+        } else if (type === 'bp') {
+            const sys = filteredRecords.map(r => r.systolic).filter(v => v > 0);
+            const dia = filteredRecords.map(r => r.diastolic).filter(v => v > 0);
+            if (sys.length > 0 && dia.length > 0) {
+                minVal = Math.min(...dia) - 10;
+                maxVal = Math.max(...sys) + 10;
+            }
+        } else if (type === 'glucose') {
+            const values = filteredRecords.flatMap(r => [r.glucoseFasting, r.glucosePostMeal, r.glucoseRandom]).filter(v => (v ?? 0) > 0) as number[];
+            if (values.length > 0) {
+                minVal = Math.min(...values) - 10;
+                maxVal = Math.max(...values) + 10;
+            }
+        }
+
+        // Ensure minVal is not negative unless data is negative (unlikely for health data)
+        if (minVal !== undefined && minVal < 0) minVal = 0;
+
+        return {
+            responsive: true,
+            maintainAspectRatio: !fullscreenChart,
+            interaction: { mode: 'index' as const, intersect: false },
+            plugins: { legend: { position: 'top' as const } },
+            scales: {
+                y: {
+                    type: 'linear' as const,
+                    display: true,
+                    position: 'left' as const,
+                    beginAtZero: false,
+                    grace: '5%',
+                    suggestedMin: minVal,
+                    suggestedMax: maxVal
+                }
+            },
+        };
     };
 
     const ranges: { value: TimeRange; label: string }[] = [
@@ -599,17 +632,17 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
                     <ExpandButton type="weight" />
                     <h4 className="text-md font-medium text-gray-700 mb-4">體重趨勢 (點擊數值編輯)</h4>
-                    <Line ref={chartRefWeight} data={weightData} options={options} {...bindClick(chartRefWeight)} />
+                    <Line ref={chartRefWeight} data={weightData} options={createOptions('weight')} {...bindClick(chartRefWeight)} />
                 </div>
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
                     <ExpandButton type="bp" />
                     <h4 className="text-md font-medium text-gray-700 mb-4">血壓變化 (點擊數值編輯)</h4>
-                    <Line ref={chartRefBP} data={bpData} options={options} plugins={[pulsePressurePlugin]} {...bindClick(chartRefBP)} />
+                    <Line ref={chartRefBP} data={bpData} options={createOptions('bp')} plugins={[pulsePressurePlugin]} {...bindClick(chartRefBP)} />
                 </div>
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 cursor-pointer hover:border-teal-200 transition">
                     <ExpandButton type="glucose" />
                     <h4 className="text-md font-medium text-gray-700 mb-4">血糖紀錄 (點擊數值編輯)</h4>
-                    <Line ref={chartRefGlucose} data={glucoseData} options={options} {...bindClick(chartRefGlucose)} />
+                    <Line ref={chartRefGlucose} data={glucoseData} options={createOptions('glucose')} {...bindClick(chartRefGlucose)} />
                 </div>
             </div>
 
