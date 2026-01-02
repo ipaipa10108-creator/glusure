@@ -43,11 +43,12 @@ interface ChartSectionProps {
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
     alertPointColor?: string; // 超過警示線的資料點顏色
+    auxiliaryLineMode?: 'y-axis' | 'x-axis';
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryColors, alertPointColor }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -197,7 +198,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     // --- Weight Chart Logic ---
     const weightYMax = Math.max(...filteredRecords.map(r => r.weight || 0), activeThresholds.weightHigh || 70) + 5;
 
-
+    // Derived Mode for Weight Chart
+    // User Request: Weight uses Segments + Legend in X-axis mode, Bars in Y-axis mode.
+    const weightAuxMode = auxiliaryLineMode === 'x-axis' ? 'legend-only' : 'bar';
 
     // Get active colors (user-defined or defaults)
     const colors = auxiliaryColors || DEFAULT_AUXILIARY_COLORS;
@@ -248,10 +251,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const weightData = {
         labels,
         datasets: [
-            // Weight Chart: Legend Only for Aux (Segments on Line)
-            createSmartAuxBar('阻力訓練', colors.resistance, (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, 'legend-only'),
-            createSmartAuxBar('腳踏車', colors.cycling, (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, 'legend-only'),
-            createSmartAuxBar('健走/其他', colors.walking, (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, 'legend-only'),
+            // Weight Chart: X-axis mode uses Segments (Legend Only bars), Y-axis mode uses Bars.
+            createSmartAuxBar('阻力訓練', colors.resistance, (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, weightAuxMode),
+            createSmartAuxBar('腳踏車', colors.cycling, (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, weightAuxMode),
+            createSmartAuxBar('健走/其他', colors.walking, (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, weightAuxMode),
             {
                 label: '體重 (kg)',
                 data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
@@ -267,7 +270,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 borderWidth: 2,
                 segment: {
                     borderColor: (ctx: any) => {
-                        if (!showAuxiliaryLines) return undefined;
+                        if (!showAuxiliaryLines || auxiliaryLineMode !== 'x-axis') return undefined; // Only in X-axis mode
                         const color = getWeightColor(ctx.p0.parsed.x);
                         return color || 'rgb(53, 162, 235)';
                     }
@@ -280,6 +283,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- BP Chart Logic ---
     const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
+
+    // Derived Mode for BP Chart
+    // User Request: BP uses HR Segments in X-axis mode, Bars in Y-axis mode.
+    const bpAuxMode = auxiliaryLineMode === 'x-axis' ? 'legend-only' : 'bar';
 
     // Helper: 判斷脈壓差是否超出範圍
     const isPulsePressureAbnormal = (r: HealthRecord): boolean => {
@@ -395,8 +402,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         labels,
         datasets: [
             // BP Chart: Legend Only for Aux (Segments on Heart Rate Line)
-            createSmartAuxBar('天氣(熱)', colors.weatherHot, (r) => r.weather === 'hot', bpYMax, 'legend-only'),
-            createSmartAuxBar('天氣(冷)', colors.weatherCold, (r) => r.weather === 'cold', bpYMax, 'legend-only'),
+            createSmartAuxBar('天氣(熱)', colors.weatherHot, (r) => r.weather === 'hot', bpYMax, bpAuxMode),
+            createSmartAuxBar('天氣(冷)', colors.weatherCold, (r) => r.weather === 'cold', bpYMax, bpAuxMode),
             {
                 label: '收縮壓',
                 data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
@@ -435,9 +442,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 order: 1,
                 borderWidth: 2,
                 segment: {
-                    // Apply Weather colors to Heart Rate line if Aux lines enabled
+                    // Apply Weather colors to Heart Rate line if Aux lines enabled AND in X-axis mode
                     borderColor: (ctx: any) => {
-                        if (!showAuxiliaryLines) return undefined;
+                        if (!showAuxiliaryLines || auxiliaryLineMode !== 'x-axis') return undefined;
                         const color = getBPColor(ctx.p0.parsed.x);
                         return color || 'rgb(153, 102, 255)';
                     }
