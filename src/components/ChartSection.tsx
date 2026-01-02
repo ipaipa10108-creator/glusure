@@ -467,12 +467,12 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     const glucoseFastingColors = filteredRecords.map((r, i) => {
         if ((r.glucoseFasting ?? 0) <= 0) return 'rgb(255, 159, 64)';
-        if (activeThresholds.fastingHigh > 0 && r.glucoseFasting > activeThresholds.fastingHigh) return effectiveAlertColor;
+        if (activeThresholds.fastingHigh > 0 && (r.glucoseFasting ?? 0) > activeThresholds.fastingHigh) return effectiveAlertColor;
         return glucoseColorMap.get(i) || 'rgb(255, 159, 64)';
     });
     const glucosePostMealColors = filteredRecords.map((r, i) => {
         if ((r.glucosePostMeal ?? 0) <= 0) return 'rgb(153, 102, 255)';
-        if (activeThresholds.postMealHigh > 0 && r.glucosePostMeal > activeThresholds.postMealHigh) return effectiveAlertColor;
+        if (activeThresholds.postMealHigh > 0 && (r.glucosePostMeal ?? 0) > activeThresholds.postMealHigh) return effectiveAlertColor;
         return glucoseColorMap.get(i) || 'rgb(153, 102, 255)';
     });
     const glucoseRandomColors = filteredRecords.map((r, i) => {
