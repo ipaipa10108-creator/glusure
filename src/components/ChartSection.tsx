@@ -214,7 +214,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     };
 
     // Modified Aux Bar Creator: In X-axis mode, still show legend but with hidden data
-    // Modified Aux Bar Creator: In X-axis mode, still show legend but with hidden data
     const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, _validCount: number) => {
         if (!showAuxiliaryLines) return null;
 
@@ -443,7 +442,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 }
             },
             createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
-            createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
             createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
             createPulsePressureAlertDataset()
         ].filter(Boolean) as any[]
