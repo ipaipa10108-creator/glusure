@@ -225,10 +225,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 ? filteredRecords.map(r => condition(r) ? yMax : null)
                 : filteredRecords.map(() => null), // Legend only
             backgroundColor: color,
-            type: 'bar' as const,
+            type: (mode === 'legend-only' ? 'line' : 'bar') as any,
             barThickness: 2,
             order: 1000,
-            hidden: false
+            hidden: mode === 'legend-only' ? true : false // Hide line if legend-only (segments will show), show bar if bar mode
         };
     };
 
@@ -352,7 +352,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             ctx.save();
             ctx.beginPath();
             ctx.lineWidth = 2;
-            ctx.strokeStyle = effectiveAlertColor;
+            ctx.strokeStyle = effectiveAlertColor || '#FF0000';
             ctx.setLineDash([5, 5]); // Dashed line
 
             filteredRecords.forEach((r, index) => {
@@ -486,6 +486,17 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             createSmartAuxBar('節食', colors.dieting, (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax),
             createSmartAuxBar('斷食', colors.fasting, (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax),
             {
+                label: '血糖趨勢',
+                data: filteredRecords.map(r => (r.glucoseFasting || r.glucosePostMeal || r.glucoseRandom || null)),
+                borderColor: 'rgba(200, 200, 200, 0.5)',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+                type: 'line' as const,
+                order: 2,
+                spanGaps: true
+            },
+            {
                 label: '空腹血糖',
                 data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null),
                 borderColor: 'rgb(255, 159, 64)',
@@ -532,7 +543,15 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         maintainAspectRatio: !fullscreenChart,
         interaction: { mode: 'index' as const, intersect: false },
         plugins: { legend: { position: 'top' as const } },
-        scales: { y: { type: 'linear' as const, display: true, position: 'left' as const } },
+        scales: {
+            y: {
+                type: 'linear' as const,
+                display: true,
+                position: 'left' as const,
+                beginAtZero: false,
+                grace: '5%'
+            }
+        },
     };
 
     const ranges: { value: TimeRange; label: string }[] = [
