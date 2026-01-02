@@ -47,7 +47,7 @@ interface ChartSectionProps {
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryColors, alertPointColor }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -197,8 +197,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     // --- Weight Chart Logic ---
     const weightYMax = Math.max(...filteredRecords.map(r => r.weight || 0), activeThresholds.weightHigh || 70) + 5;
 
-    // Calculate validity count for fallback logic
-    const validWeightCount = filteredRecords.filter(r => (r.weight ?? 0) > 0).length;
+
 
     // Get active colors (user-defined or defaults)
     const colors = auxiliaryColors || DEFAULT_AUXILIARY_COLORS;
@@ -281,7 +280,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- BP Chart Logic ---
     const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
-    const validBPCount = filteredRecords.filter(r => (r.systolic ?? 0) > 0).length;
 
     // Helper: 判斷脈壓差是否超出範圍
     const isPulsePressureAbnormal = (r: HealthRecord): boolean => {
@@ -319,8 +317,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         if (r.weather === 'cold') return colors.weatherCold;
         return null;
     };
-    // Helper: Heart Rate color (currently only Other Note)
-    const getHRColor = (index: number): string | null => hrColorMap.get(index) || null;
+
 
     const hrPointColors = filteredRecords.map((r, i) => {
         if ((r.heartRate ?? 0) <= 0) return 'rgb(153, 102, 255)';
@@ -454,16 +451,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // --- Glucose Chart Logic ---
     const glucoseYMax = Math.max(...filteredRecords.map(r => Math.max(r.glucoseFasting || 0, r.glucosePostMeal || 0, r.glucoseRandom || 0)), 200) + 20;
-    const validGlucoseCount = filteredRecords.filter(r => (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0).length;
-
-    const getGlucoseColorHelper = (index: number): string | null => {
-        const r = filteredRecords[index];
-        if (!r.noteContent) return glucoseColorMap.get(index) || null;
-        if (r.noteContent.includes('"bigMeal"')) return colors.bigMeal;
-        if (r.noteContent.includes('"dieting"')) return colors.dieting;
-        if (r.noteContent.includes('"fasting"')) return colors.fasting;
-        return glucoseColorMap.get(index) || null;
-    };
 
     const glucoseFastingColors = filteredRecords.map((r, i) => {
         if ((r.glucoseFasting ?? 0) <= 0) return 'rgb(255, 159, 64)';
