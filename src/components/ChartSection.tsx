@@ -214,18 +214,15 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     };
 
     // Modified Aux Bar Creator: In X-axis mode, still show legend but with hidden data
-    const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, _validCount: number) => {
+    // mode: 'bar' (show bars) | 'legend-only' (show legend, no bars)
+    const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, mode: 'bar' | 'legend-only' = 'bar') => {
         if (!showAuxiliaryLines) return null;
-
-        // In X-axis mode with >=2 points: keep legend but hide actual bars
-        const isXAxisModeWithLines = auxiliaryLineMode === 'x-axis' && _validCount >= 2;
 
         return {
             label: label,
-            // Show data only in Y-axis mode or when isolated
-            data: isXAxisModeWithLines
-                ? filteredRecords.map(() => null) // No bars but legend visible
-                : filteredRecords.map(r => condition(r) ? yMax : null),
+            data: mode === 'bar'
+                ? filteredRecords.map(r => condition(r) ? yMax : null)
+                : filteredRecords.map(() => null), // Legend only
             backgroundColor: color,
             type: 'bar' as const,
             barThickness: 2,
@@ -252,9 +249,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const weightData = {
         labels,
         datasets: [
-            createSmartAuxBar('阻力訓練', colors.resistance, (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, validWeightCount),
-            createSmartAuxBar('腳踏車', colors.cycling, (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, validWeightCount),
-            createSmartAuxBar('健走/其他', colors.walking, (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, validWeightCount),
+            // Weight Chart: Legend Only for Aux (Segments on Line)
+            createSmartAuxBar('阻力訓練', colors.resistance, (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, 'legend-only'),
+            createSmartAuxBar('腳踏車', colors.cycling, (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, 'legend-only'),
+            createSmartAuxBar('健走/其他', colors.walking, (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, 'legend-only'),
             {
                 label: '體重 (kg)',
                 data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
@@ -267,10 +265,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 tension: 0.4,
                 type: 'line' as const,
                 order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2, // Thicker line in X-axis mode
+                borderWidth: 2,
                 segment: {
                     borderColor: (ctx: any) => {
-                        if (auxiliaryLineMode !== 'x-axis') return undefined;
+                        if (!showAuxiliaryLines) return undefined;
                         const color = getWeightColor(ctx.p0.parsed.x);
                         return color || 'rgb(53, 162, 235)';
                     }
@@ -314,7 +312,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         return 4;
     });
 
-    // Helper: Weather color for BP
+    // Helper: Weather color for BP (used on Heart Rate line)
     const getBPColor = (index: number): string | null => {
         const r = filteredRecords[index];
         if (r.weather === 'hot') return colors.weatherHot;
@@ -336,26 +334,32 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     });
 
     // 建立脈壓差異常虛線資料集 (只在警示線開啟時顯示)
-    // 使用分段 dataset 來繪製垂直虛線連接收縮壓和舒張壓
     // Custom Plugin to draw vertical dashed lines for abnormal pulse pressure
-    const pulsePressurePlugin = {
+    const pulsePressurePlugin = useMemo(() => ({
         id: 'pulsePressureLines',
         afterDatasetsDraw(chart: any) {
+            // Check if alert lines are enabled (showThresholds)
             if (!showThresholds) return;
+
             const { ctx, scales: { x, y } } = chart;
+
+            // Safety check
+            if (!x || !y) return;
 
             ctx.save();
             ctx.beginPath();
             ctx.lineWidth = 2;
             ctx.strokeStyle = effectiveAlertColor;
-            ctx.setLineDash([4, 4]);
+            ctx.setLineDash([5, 5]); // Dashed line
 
             filteredRecords.forEach((r, index) => {
                 if (isPulsePressureAbnormal(r)) {
+                    // Important: x.getPixelForValue(index) relies on data index matching label index
                     const xPos = x.getPixelForValue(index);
                     const ySys = y.getPixelForValue(r.systolic);
                     const yDia = y.getPixelForValue(r.diastolic);
 
+                    // Check bounds to ensure we don't draw outside chart area (though clip usually handles this)
                     if (xPos >= chart.chartArea.left && xPos <= chart.chartArea.right) {
                         ctx.moveTo(xPos, ySys);
                         ctx.lineTo(xPos, yDia);
@@ -366,7 +370,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             ctx.stroke();
             ctx.restore();
         }
-    };
+    }), [filteredRecords, showThresholds, effectiveAlertColor, activeThresholds]); // Add dependencies to update when records/settings change
 
     // 建立脈壓差異常虛線資料集 (僅用於顯示圖例)
     const createPulsePressureAlertDataset = () => {
@@ -383,7 +387,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             borderColor: effectiveAlertColor,
             backgroundColor: 'transparent',
             borderWidth: 2,
-            borderDash: [4, 4],
+            borderDash: [5, 5],
             pointRadius: 0,
             type: 'line' as const,
             order: 0,
@@ -393,8 +397,9 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const bpData = {
         labels,
         datasets: [
-            createSmartAuxBar('天氣(熱)', colors.weatherHot, (r) => r.weather === 'hot', bpYMax, validBPCount),
-            createSmartAuxBar('天氣(冷)', colors.weatherCold, (r) => r.weather === 'cold', bpYMax, validBPCount),
+            // BP Chart: Legend Only for Aux (Segments on Heart Rate Line)
+            createSmartAuxBar('天氣(熱)', colors.weatherHot, (r) => r.weather === 'hot', bpYMax, 'legend-only'),
+            createSmartAuxBar('天氣(冷)', colors.weatherCold, (r) => r.weather === 'cold', bpYMax, 'legend-only'),
             {
                 label: '收縮壓',
                 data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
@@ -405,10 +410,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(255, 99, 132)'
-                }
+                borderWidth: 2,
+                // BP main lines do not change color by aux
             },
             {
                 label: '舒張壓',
@@ -420,10 +423,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(75, 192, 192)'
-                }
+                borderWidth: 2,
             },
             {
                 label: '心跳',
@@ -436,9 +436,14 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 borderDash: [5, 5],
                 type: 'line' as const,
                 order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
+                borderWidth: 2,
                 segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getHRColor(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
+                    // Apply Weather colors to Heart Rate line if Aux lines enabled
+                    borderColor: (ctx: any) => {
+                        if (!showAuxiliaryLines) return undefined;
+                        const color = getBPColor(ctx.p0.parsed.x);
+                        return color || 'rgb(153, 102, 255)';
+                    }
                 }
             },
             createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
@@ -483,9 +488,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const glucoseData = {
         labels,
         datasets: [
-            createSmartAuxBar('大餐', colors.bigMeal, (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax, validGlucoseCount),
-            createSmartAuxBar('節食', colors.dieting, (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax, validGlucoseCount),
-            createSmartAuxBar('斷食', colors.fasting, (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax, validGlucoseCount),
+            // Glucose Chart: Keep Bars for Aux
+            createSmartAuxBar('大餐', colors.bigMeal, (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax),
+            createSmartAuxBar('節食', colors.dieting, (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax),
+            createSmartAuxBar('斷食', colors.fasting, (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax),
             {
                 label: '空腹血糖',
                 data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null),
@@ -496,10 +502,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(255, 159, 64)'
-                }
+                borderWidth: 2,
+                // Glucose main lines do not change color by aux in this request, only Background bars
             },
             {
                 label: '飯後血糖',
@@ -511,10 +515,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
-                }
+                borderWidth: 2,
             },
             {
                 label: '臨時血糖',
@@ -526,10 +527,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 spanGaps: true,
                 type: 'line' as const,
                 order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(201, 203, 207)'
-                }
+                borderWidth: 2,
             },
             createThresholdLine(activeThresholds.fastingHigh, '空腹高標', 'rgba(255, 159, 64, 0.6)'),
             createThresholdLine(activeThresholds.postMealHigh, '飯後高標', 'rgba(153, 102, 255, 0.6)')
