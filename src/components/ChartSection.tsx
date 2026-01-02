@@ -354,28 +354,24 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             const diaMeta = chart.getDatasetMeta(diaIndex);
 
             ctx.save();
-            ctx.beginPath();
             ctx.lineWidth = 2;
-            ctx.strokeStyle = effectiveAlertColor || '#FF0000';
-            ctx.setLineDash([5, 5]); // Dashed line
+            ctx.strokeStyle = '#FF0000'; // Hardcoded fallback for now to ensure visibility
+            if (effectiveAlertColor) ctx.strokeStyle = effectiveAlertColor;
+
+            ctx.setLineDash([5, 5]);
 
             filteredRecords.forEach((r, index) => {
-                if (isPulsePressureAbnormal(r)) {
-                    // Use meta data points to ensure we draw exactly where the points are
-                    // Check if points exist at this index
-                    const sysPoint = sysMeta.data[index];
-                    const diaPoint = diaMeta.data[index];
+                const sysPoint = sysMeta.data[index];
+                const diaPoint = diaMeta.data[index];
 
-                    if (sysPoint && diaPoint && !sysPoint.skip && !diaPoint.skip) {
-                        ctx.moveTo(sysPoint.x, sysPoint.y);
-                        // Draw vertical line to diastolic point
-                        // Use sysPoint.x for x-coordinate to ensure vertical alignment
-                        ctx.lineTo(sysPoint.x, diaPoint.y);
-                    }
+                if (isPulsePressureAbnormal(r) && sysPoint && diaPoint && !sysPoint.skip && !diaPoint.skip) {
+                    ctx.beginPath();
+                    ctx.moveTo(sysPoint.x, sysPoint.y);
+                    ctx.lineTo(diaPoint.x, diaPoint.y); // Use diaPoint.x to be safe
+                    ctx.stroke();
                 }
             });
 
-            ctx.stroke();
             ctx.restore();
         }
     }), [filteredRecords, effectiveAlertColor, activeThresholds]);
@@ -456,6 +452,18 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             },
             createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
             createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
+            {
+                label: '脈壓差',
+                data: filteredRecords.map(r => (r.systolic > 0 && r.diastolic > 0) ? (r.systolic - r.diastolic) : null),
+                borderColor: 'rgba(128, 128, 128, 0.5)',
+                borderDash: [2, 2],
+                pointRadius: 0,
+                borderWidth: 1,
+                fill: false,
+                type: 'line' as const,
+                yAxisID: 'y1', // Secondary Axis
+                order: 2
+            },
             createPulsePressureAlertDataset()
         ].filter(Boolean) as any[]
     };
@@ -544,55 +552,71 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     };
 
     const createOptions = (type: ChartType) => {
-        // Calculate min/max for explicit scaling
+        // Calculate min/max based on DATA ONLY to prevent flattening
+        // Ignore Thresholds for scaling limits
         let minVal: number | undefined;
         let maxVal: number | undefined;
 
         if (type === 'weight') {
             const values = filteredRecords.map(r => r.weight).filter(v => v > 0);
             if (values.length > 0) {
-                minVal = Math.floor(Math.min(...values) - 2);
-                maxVal = Math.ceil(Math.max(...values) + 2);
+                minVal = Math.floor(Math.min(...values) - 5); // Relaxed padding
+                maxVal = Math.ceil(Math.max(...values) + 5);
             }
         } else if (type === 'bp') {
             const sys = filteredRecords.map(r => r.systolic).filter(v => v > 0);
             const dia = filteredRecords.map(r => r.diastolic).filter(v => v > 0);
             const allBP = [...sys, ...dia];
             if (allBP.length > 0) {
-                minVal = Math.floor(Math.min(...allBP) - 10);
-                maxVal = Math.ceil(Math.max(...allBP) + 10);
+                minVal = Math.floor(Math.min(...allBP) - 15); // Relaxed padding
+                maxVal = Math.ceil(Math.max(...allBP) + 15);
             }
         } else if (type === 'glucose') {
             const values = filteredRecords.flatMap(r => [r.glucoseFasting, r.glucosePostMeal, r.glucoseRandom]).filter(v => (v ?? 0) > 0) as number[];
             if (values.length > 0) {
-                minVal = Math.floor(Math.min(...values) - 10);
-                maxVal = Math.ceil(Math.max(...values) + 10);
+                minVal = Math.floor(Math.min(...values) - 15); // Relaxed padding
+                maxVal = Math.ceil(Math.max(...values) + 15);
             }
         }
 
-        // Ensure minVal is not negative unless data is negative (unlikely for health data)
-        // FORCE the scale to start at minVal (if calculated), preventing 0-start behavior
         if (minVal !== undefined && minVal < 0) minVal = 0;
 
-        const scaleOptions: any = {
-            type: 'linear' as const,
-            display: true,
-            position: 'left' as const,
-            beginAtZero: false,
-            grace: '5%',
+        const scales: any = {
+            y: {
+                type: 'linear' as const,
+                display: true,
+                position: 'left' as const,
+                beginAtZero: false,
+                grace: '5%',
+                min: minVal, // Hard limit
+                max: maxVal  // Hard limit
+            }
         };
 
-        if (minVal !== undefined) scaleOptions.min = minVal;
-        if (maxVal !== undefined) scaleOptions.max = maxVal;
+        // Add Secondary Axis for BP Pulse Pressure
+        if (type === 'bp') {
+            scales.y1 = {
+                type: 'linear' as const,
+                display: true, // Show the scale on right
+                position: 'right' as const,
+                grid: {
+                    drawOnChartArea: false, // Don't draw grid lines for secondary axis
+                },
+                title: {
+                    display: true,
+                    text: '脈壓差'
+                },
+                min: 0,
+                max: 100 // Reasonable range for pulse pressure
+            };
+        }
 
         return {
             responsive: true,
             maintainAspectRatio: !fullscreenChart,
             interaction: { mode: 'index' as const, intersect: false },
             plugins: { legend: { position: 'top' as const } },
-            scales: {
-                y: scaleOptions
-            },
+            scales: scales
         };
     };
 
