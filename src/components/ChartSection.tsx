@@ -217,427 +217,426 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, validCount: number) => {
         if (!showAuxiliaryLines) return null;
 
-        // In X-axis mode with >=2 points: keep legend but hide actual bars
-        const isXAxisModeWithLines = auxiliaryLineMode === 'x-axis' && validCount >= 2;
-
-        return {
-            label: label,
-            // Show data only in Y-axis mode or when isolated
-            data: isXAxisModeWithLines
-                ? filteredRecords.map(() => null) // No bars but legend visible
-                : filteredRecords.map(r => condition(r) ? yMax : null),
+        // Show data in all modes (User requested to see data even in X-axis mode)
+        data: filteredRecords.map(r => condition(r) ? yMax : null),
             backgroundColor: color,
-            type: 'bar' as const,
-            barThickness: 2,
-            order: 1000,
-            // Hide from tooltip in X-axis mode
-            hidden: false
-        };
+                type: 'bar' as const,
+                    barThickness: 2,
+                        order: 1000,
+                            // Hide from tooltip in X-axis mode
+                            hidden: false
     };
+};
 
-    const weightPointColors = filteredRecords.map((r, i) => {
-        if ((r.weight ?? 0) <= 0) return 'rgb(53, 162, 235)';
-        if ((activeThresholds.weightHigh > 0 && r.weight > activeThresholds.weightHigh) ||
-            (activeThresholds.weightLow > 0 && r.weight < activeThresholds.weightLow)) {
-            return effectiveAlertColor;
-        }
-        return weightColorMap.get(i) || 'rgb(53, 162, 235)';
-    });
+const weightPointColors = filteredRecords.map((r, i) => {
+    if ((r.weight ?? 0) <= 0) return 'rgb(53, 162, 235)';
+    if ((activeThresholds.weightHigh > 0 && r.weight > activeThresholds.weightHigh) ||
+        (activeThresholds.weightLow > 0 && r.weight < activeThresholds.weightLow)) {
+        return effectiveAlertColor;
+    }
+    return weightColorMap.get(i) || 'rgb(53, 162, 235)';
+});
 
-    // Restore weightPointRadii
-    const weightPointRadii = filteredRecords.map((r, i) => {
-        if ((r.weight ?? 0) <= 0) return 4;
-        return weightColorMap.has(i) ? 6 : 4;
-    });
+// Restore weightPointRadii
+const weightPointRadii = filteredRecords.map((r, i) => {
+    if ((r.weight ?? 0) <= 0) return 4;
+    return weightColorMap.has(i) ? 6 : 4;
+});
 
-    const weightData = {
-        labels,
-        datasets: [
-            createSmartAuxBar('阻力訓練', colors.resistance, (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, validWeightCount),
-            createSmartAuxBar('腳踏車', colors.cycling, (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, validWeightCount),
-            createSmartAuxBar('健走/其他', colors.walking, (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, validWeightCount),
-            {
-                label: '體重 (kg)',
-                data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
-                borderColor: 'rgb(53, 162, 235)',
-                backgroundColor: 'rgba(53, 162, 235, 0.2)',
-                pointBackgroundColor: weightPointColors,
-                pointRadius: weightPointRadii,
-                fill: true,
-                spanGaps: true,
-                tension: 0.4,
-                type: 'line' as const,
-                order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2, // Thicker line in X-axis mode
-                segment: {
-                    borderColor: (ctx: any) => {
-                        if (auxiliaryLineMode !== 'x-axis') return undefined;
-                        const color = getWeightColor(ctx.p0.parsed.x);
-                        return color || 'rgb(53, 162, 235)';
-                    }
-                }
-            },
-            createThresholdLine(activeThresholds.weightHigh, '體重高標', 'rgba(255, 99, 132, 0.8)'),
-            createThresholdLine(activeThresholds.weightLow, '體重低標', 'rgba(255, 159, 64, 0.8)')
-        ].filter(Boolean) as any[]
-    };
-
-    // --- BP Chart Logic ---
-    const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
-    const validBPCount = filteredRecords.filter(r => (r.systolic ?? 0) > 0).length;
-
-    // Helper: 判斷脈壓差是否超出範圍
-    const isPulsePressureAbnormal = (r: HealthRecord): boolean => {
-        if (r.systolic <= 0 || r.diastolic <= 0) return false;
-        const pulsePressure = r.systolic - r.diastolic;
-        return pulsePressure > activeThresholds.pulsePressureHigh || pulsePressure < activeThresholds.pulsePressureLow;
-    };
-
-    // 收縮壓點顏色：超過閾值用警示顏色
-    const systolicPointColors = filteredRecords.map(r => {
-        if (r.systolic <= 0) return 'rgb(255, 99, 132)';
-        if (r.systolic > activeThresholds.systolicHigh) return effectiveAlertColor;
-        return 'rgb(255, 99, 132)';
-    });
-
-    // 舒張壓點顏色：超過閾值用警示顏色
-    const diastolicPointColors = filteredRecords.map(r => {
-        if (r.diastolic <= 0) return 'rgb(75, 192, 192)';
-        if (r.diastolic > activeThresholds.diastolicHigh) return effectiveAlertColor;
-        return 'rgb(75, 192, 192)';
-    });
-
-    // 脈壓差異常點的半徑 (異常時放大)
-    const bpPointRadii = filteredRecords.map(r => {
-        if (r.systolic <= 0) return 4;
-        if (isPulsePressureAbnormal(r)) return 7;
-        if (r.systolic > activeThresholds.systolicHigh || r.diastolic > activeThresholds.diastolicHigh) return 6;
-        return 4;
-    });
-
-    // Helper: Weather color for BP
-    const getBPColor = (index: number): string | null => {
-        const r = filteredRecords[index];
-        if (r.weather === 'hot') return colors.weatherHot;
-        if (r.weather === 'cold') return colors.weatherCold;
-        return null;
-    };
-    // Helper: Heart Rate color (currently only Other Note)
-    const getHRColor = (index: number): string | null => hrColorMap.get(index) || null;
-
-    const hrPointColors = filteredRecords.map((r, i) => {
-        if ((r.heartRate ?? 0) <= 0) return 'rgb(153, 102, 255)';
-        return hrColorMap.get(i) || 'rgb(153, 102, 255)';
-    });
-
-    // ... existing radii logic ...
-    const hrPointRadii = filteredRecords.map((r, i) => {
-        if ((r.heartRate ?? 0) <= 0) return 4;
-        return hrColorMap.has(i) ? 6 : 4;
-    });
-
-    // 建立脈壓差異常虛線資料集 (只在警示線開啟時顯示)
-    // 使用分段 dataset 來繪製垂直虛線連接收縮壓和舒張壓
-    // Custom Plugin to draw vertical dashed lines for abnormal pulse pressure
-    const pulsePressurePlugin = {
-        id: 'pulsePressureLines',
-        afterDatasetsDraw(chart: any) {
-            if (!showThresholds) return;
-            const { ctx, scales: { x, y } } = chart;
-
-
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = effectiveAlertColor;
-            ctx.setLineDash([4, 4]);
-
-            filteredRecords.forEach((r, index) => {
-                if (isPulsePressureAbnormal(r)) {
-                    const xPos = x.getPixelForValue(index);
-                    const ySys = y.getPixelForValue(r.systolic);
-                    const yDia = y.getPixelForValue(r.diastolic);
-
-                    // Draw vertical line only for lines within chart area
-                    if (xPos >= chart.chartArea.left && xPos <= chart.chartArea.right) {
-                        ctx.moveTo(xPos, ySys);
-                        ctx.lineTo(xPos, yDia);
-                    }
-                }
-            });
-
-            ctx.stroke();
-            ctx.restore();
-        }
-    };
-
-    // 建立脈壓差異常虛線資料集 (僅用於顯示圖例)
-    const createPulsePressureAlertDataset = () => {
-        if (!showThresholds) return null;
-
-        // 紀錄每個點是否需要繪製虛線
-        const hasAbnormal = filteredRecords.some(r => isPulsePressureAbnormal(r));
-        if (!hasAbnormal) return null;
-
-        // 建立中點資料集 - 用於圖例顯示
-        return {
-            label: '脈壓差異常',
-            data: [], // 不繪製實際點，由 plugin 繪製
-            borderColor: effectiveAlertColor,
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            borderDash: [4, 4],
-            pointRadius: 0,
+const weightData = {
+    labels,
+    datasets: [
+        createSmartAuxBar('阻力訓練', colors.resistance, (r) => r.noteContent ? r.noteContent.includes('"type":"resistance"') : false, weightYMax, validWeightCount),
+        createSmartAuxBar('腳踏車', colors.cycling, (r) => r.noteContent ? r.noteContent.includes('"type":"cycling"') : false, weightYMax, validWeightCount),
+        createSmartAuxBar('健走/其他', colors.walking, (r) => r.noteContent ? (r.noteContent.includes('"type":"walking"') || r.noteContent.includes('"type":"other"')) : false, weightYMax, validWeightCount),
+        {
+            label: '體重 (kg)',
+            data: filteredRecords.map(r => r.weight > 0 ? r.weight : null),
+            borderColor: 'rgb(53, 162, 235)',
+            backgroundColor: 'rgba(53, 162, 235, 0.2)',
+            pointBackgroundColor: weightPointColors,
+            pointRadius: weightPointRadii,
+            fill: true,
+            spanGaps: true,
+            tension: 0.4,
             type: 'line' as const,
-            order: 0,
-        };
-    };
-
-    const bpData = {
-        labels,
-        datasets: [
-            createSmartAuxBar('天氣(熱)', colors.weatherHot, (r) => r.weather === 'hot', bpYMax, validBPCount),
-            createSmartAuxBar('天氣(冷)', colors.weatherCold, (r) => r.weather === 'cold', bpYMax, validBPCount),
-            {
-                label: '收縮壓',
-                data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
-                borderColor: 'rgb(255, 99, 132)',
-                backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                pointBackgroundColor: systolicPointColors,
-                pointRadius: bpPointRadii,
-                spanGaps: true,
-                type: 'line' as const,
-                order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(255, 99, 132)'
+            order: 1,
+            borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2, // Thicker line in X-axis mode
+            segment: {
+                borderColor: (ctx: any) => {
+                    if (auxiliaryLineMode !== 'x-axis') return undefined;
+                    const color = getWeightColor(ctx.p0.parsed.x);
+                    return color || 'rgb(53, 162, 235)';
                 }
-            },
-            {
-                label: '舒張壓',
-                data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null),
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                pointBackgroundColor: diastolicPointColors,
-                pointRadius: bpPointRadii,
-                spanGaps: true,
-                type: 'line' as const,
-                order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(75, 192, 192)'
+            }
+        },
+        createThresholdLine(activeThresholds.weightHigh, '體重高標', 'rgba(255, 99, 132, 0.8)'),
+        createThresholdLine(activeThresholds.weightLow, '體重低標', 'rgba(255, 159, 64, 0.8)')
+    ].filter(Boolean) as any[]
+};
+
+// --- BP Chart Logic ---
+const bpYMax = Math.max(...filteredRecords.map(r => r.systolic || 0), 160) + 10;
+const validBPCount = filteredRecords.filter(r => (r.systolic ?? 0) > 0).length;
+
+// Helper: 判斷脈壓差是否超出範圍
+const isPulsePressureAbnormal = (r: HealthRecord): boolean => {
+    if (r.systolic <= 0 || r.diastolic <= 0) return false;
+    const pulsePressure = r.systolic - r.diastolic;
+    return pulsePressure > activeThresholds.pulsePressureHigh || pulsePressure < activeThresholds.pulsePressureLow;
+};
+
+// 收縮壓點顏色：超過閾值用警示顏色
+const systolicPointColors = filteredRecords.map(r => {
+    if (r.systolic <= 0) return 'rgb(255, 99, 132)';
+    if (r.systolic > activeThresholds.systolicHigh) return effectiveAlertColor;
+    return 'rgb(255, 99, 132)';
+});
+
+// 舒張壓點顏色：超過閾值用警示顏色
+const diastolicPointColors = filteredRecords.map(r => {
+    if (r.diastolic <= 0) return 'rgb(75, 192, 192)';
+    if (r.diastolic > activeThresholds.diastolicHigh) return effectiveAlertColor;
+    return 'rgb(75, 192, 192)';
+});
+
+// 脈壓差異常點的半徑 (異常時放大)
+const bpPointRadii = filteredRecords.map(r => {
+    if (r.systolic <= 0) return 4;
+    if (isPulsePressureAbnormal(r)) return 7;
+    if (r.systolic > activeThresholds.systolicHigh || r.diastolic > activeThresholds.diastolicHigh) return 6;
+    return 4;
+});
+
+// Helper: Weather color for BP
+const getBPColor = (index: number): string | null => {
+    const r = filteredRecords[index];
+    if (r.weather === 'hot') return colors.weatherHot;
+    if (r.weather === 'cold') return colors.weatherCold;
+    return null;
+};
+// Helper: Heart Rate color (currently only Other Note)
+const getHRColor = (index: number): string | null => hrColorMap.get(index) || null;
+
+const hrPointColors = filteredRecords.map((r, i) => {
+    if ((r.heartRate ?? 0) <= 0) return 'rgb(153, 102, 255)';
+    return hrColorMap.get(i) || 'rgb(153, 102, 255)';
+});
+
+// ... existing radii logic ...
+const hrPointRadii = filteredRecords.map((r, i) => {
+    if ((r.heartRate ?? 0) <= 0) return 4;
+    return hrColorMap.has(i) ? 6 : 4;
+});
+
+// 建立脈壓差異常虛線資料集 (只在警示線開啟時顯示)
+// 使用分段 dataset 來繪製垂直虛線連接收縮壓和舒張壓
+// Custom Plugin to draw vertical dashed lines for abnormal pulse pressure
+const pulsePressurePlugin = {
+    id: 'pulsePressureLines',
+    afterDatasetsDraw(chart: any) {
+        if (!showThresholds) return;
+        const { ctx, scales: { x, y } } = chart;
+
+
+
+        // Safer: Find dataset index for '收縮壓'
+        const sysDatasetIndex = chart.data.datasets.findIndex((d: any) => d.label === '收縮壓');
+        if (sysDatasetIndex === -1) return;
+
+        const sysMeta = chart.getDatasetMeta(sysDatasetIndex);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = effectiveAlertColor;
+        ctx.setLineDash([4, 4]);
+
+        filteredRecords.forEach((r, index) => {
+            const sysPoint = sysMeta.data[index];
+            if (sysPoint && isPulsePressureAbnormal(r)) {
+                const xPos = sysPoint.x;
+                const ySys = y.getPixelForValue(r.systolic);
+                const yDia = y.getPixelForValue(r.diastolic);
+
+                if (xPos >= chart.chartArea.left && xPos <= chart.chartArea.right) {
+                    ctx.moveTo(xPos, ySys);
+                    ctx.lineTo(xPos, yDia);
                 }
-            },
-            {
-                label: '心跳',
-                data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null),
-                borderColor: 'rgb(153, 102, 255)',
-                backgroundColor: 'rgba(153, 102, 255, 0.5)',
-                pointBackgroundColor: hrPointColors,
-                pointRadius: hrPointRadii,
-                spanGaps: true,
-                borderDash: [5, 5],
-                type: 'line' as const,
-                order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getHRColor(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
-                }
-            },
-            createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
-            createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
-            createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
-            createPulsePressureAlertDataset()
-        ].filter(Boolean) as any[]
+            }
+        });
+
+        ctx.stroke();
+        ctx.restore();
+    }
+};
+
+// 建立脈壓差異常虛線資料集 (僅用於顯示圖例)
+const createPulsePressureAlertDataset = () => {
+    if (!showThresholds) return null;
+
+    // 紀錄每個點是否需要繪製虛線
+    const hasAbnormal = filteredRecords.some(r => isPulsePressureAbnormal(r));
+    if (!hasAbnormal) return null;
+
+    // 建立中點資料集 - 用於圖例顯示
+    return {
+        label: '脈壓差異常',
+        data: [], // 不繪製實際點，由 plugin 繪製
+        borderColor: effectiveAlertColor,
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        type: 'line' as const,
+        order: 0,
     };
+};
 
-    // --- Glucose Chart Logic ---
-    const glucoseYMax = Math.max(...filteredRecords.map(r => Math.max(r.glucoseFasting || 0, r.glucosePostMeal || 0, r.glucoseRandom || 0)), 200) + 20;
-    const validGlucoseCount = filteredRecords.filter(r => (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0).length;
+const bpData = {
+    labels,
+    datasets: [
+        createSmartAuxBar('天氣(熱)', colors.weatherHot, (r) => r.weather === 'hot', bpYMax, validBPCount),
+        createSmartAuxBar('天氣(冷)', colors.weatherCold, (r) => r.weather === 'cold', bpYMax, validBPCount),
+        {
+            label: '收縮壓',
+            data: filteredRecords.map(r => r.systolic > 0 ? r.systolic : null),
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+            pointBackgroundColor: systolicPointColors,
+            pointRadius: bpPointRadii,
+            spanGaps: true,
+            type: 'line' as const,
+            order: 1,
+            borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
+            segment: {
+                borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(255, 99, 132)'
+            }
+        },
+        {
+            label: '舒張壓',
+            data: filteredRecords.map(r => r.diastolic > 0 ? r.diastolic : null),
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.5)',
+            pointBackgroundColor: diastolicPointColors,
+            pointRadius: bpPointRadii,
+            spanGaps: true,
+            type: 'line' as const,
+            order: 1,
+            borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
+            segment: {
+                borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getBPColor(ctx.p0.parsed.x)) || 'rgb(75, 192, 192)'
+            }
+        },
+        {
+            label: '心跳',
+            data: filteredRecords.map(r => (r.heartRate ?? 0) > 0 ? r.heartRate : null),
+            borderColor: 'rgb(153, 102, 255)',
+            backgroundColor: 'rgba(153, 102, 255, 0.5)',
+            pointBackgroundColor: hrPointColors,
+            pointRadius: hrPointRadii,
+            spanGaps: true,
+            borderDash: [5, 5],
+            type: 'line' as const,
+            order: 1,
+            borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
+            segment: {
+                borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getHRColor(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
+            }
+        },
+        createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
+        createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
+        createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
+        createPulsePressureAlertDataset()
+    ].filter(Boolean) as any[]
+};
 
-    const getGlucoseColorHelper = (index: number): string | null => {
-        const r = filteredRecords[index];
-        if (!r.noteContent) return glucoseColorMap.get(index) || null;
-        if (r.noteContent.includes('"bigMeal"')) return colors.bigMeal;
-        if (r.noteContent.includes('"dieting"')) return colors.dieting;
-        if (r.noteContent.includes('"fasting"')) return colors.fasting;
-        return glucoseColorMap.get(index) || null;
-    };
+// --- Glucose Chart Logic ---
+const glucoseYMax = Math.max(...filteredRecords.map(r => Math.max(r.glucoseFasting || 0, r.glucosePostMeal || 0, r.glucoseRandom || 0)), 200) + 20;
+const validGlucoseCount = filteredRecords.filter(r => (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0).length;
 
-    const glucoseFastingColors = filteredRecords.map((r, i) => {
-        if ((r.glucoseFasting ?? 0) <= 0) return 'rgb(255, 159, 64)';
-        if (activeThresholds.fastingHigh > 0 && (r.glucoseFasting ?? 0) > activeThresholds.fastingHigh) return effectiveAlertColor;
-        return glucoseColorMap.get(i) || 'rgb(255, 159, 64)';
-    });
-    const glucosePostMealColors = filteredRecords.map((r, i) => {
-        if ((r.glucosePostMeal ?? 0) <= 0) return 'rgb(153, 102, 255)';
-        if (activeThresholds.postMealHigh > 0 && (r.glucosePostMeal ?? 0) > activeThresholds.postMealHigh) return effectiveAlertColor;
-        return glucoseColorMap.get(i) || 'rgb(153, 102, 255)';
-    });
-    const glucoseRandomColors = filteredRecords.map((r, i) => {
-        if ((r.glucoseRandom ?? 0) <= 0) return 'rgb(201, 203, 207)';
-        return glucoseColorMap.get(i) || 'rgb(201, 203, 207)';
-    });
-    const glucosePointRadii = filteredRecords.map((r, i) => {
-        const hasGlucose = (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0;
-        if (!hasGlucose) return 4;
-        return glucoseColorMap.has(i) ? 6 : 4;
-    });
+const getGlucoseColorHelper = (index: number): string | null => {
+    const r = filteredRecords[index];
+    if (!r.noteContent) return glucoseColorMap.get(index) || null;
+    if (r.noteContent.includes('"bigMeal"')) return colors.bigMeal;
+    if (r.noteContent.includes('"dieting"')) return colors.dieting;
+    if (r.noteContent.includes('"fasting"')) return colors.fasting;
+    return glucoseColorMap.get(index) || null;
+};
 
-    const glucoseData = {
-        labels,
-        datasets: [
-            createSmartAuxBar('大餐', colors.bigMeal, (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax, validGlucoseCount),
-            createSmartAuxBar('節食', colors.dieting, (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax, validGlucoseCount),
-            createSmartAuxBar('斷食', colors.fasting, (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax, validGlucoseCount),
-            {
-                label: '空腹血糖',
-                data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null),
-                borderColor: 'rgb(255, 159, 64)',
-                backgroundColor: 'rgba(255, 159, 64, 0.5)',
-                pointBackgroundColor: glucoseFastingColors,
-                pointRadius: glucosePointRadii,
-                spanGaps: true,
-                type: 'line' as const,
-                order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(255, 159, 64)'
-                }
-            },
-            {
-                label: '飯後血糖',
-                data: filteredRecords.map(r => (r.glucosePostMeal ?? 0) > 0 ? r.glucosePostMeal : null),
-                borderColor: 'rgb(153, 102, 255)',
-                backgroundColor: 'rgba(153, 102, 255, 0.5)',
-                pointBackgroundColor: glucosePostMealColors,
-                pointRadius: glucosePointRadii,
-                spanGaps: true,
-                type: 'line' as const,
-                order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
-                }
-            },
-            {
-                label: '臨時血糖',
-                data: filteredRecords.map(r => (r.glucoseRandom ?? 0) > 0 ? r.glucoseRandom : null),
-                borderColor: 'rgb(201, 203, 207)',
-                backgroundColor: 'rgba(201, 203, 207, 0.5)',
-                pointBackgroundColor: glucoseRandomColors,
-                pointRadius: glucosePointRadii,
-                spanGaps: true,
-                type: 'line' as const,
-                order: 1,
-                borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
-                segment: {
-                    borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(201, 203, 207)'
-                }
-            },
-            createThresholdLine(activeThresholds.fastingHigh, '空腹高標', 'rgba(255, 159, 64, 0.6)'),
-            createThresholdLine(activeThresholds.postMealHigh, '飯後高標', 'rgba(153, 102, 255, 0.6)')
-        ].filter(Boolean) as any[]
-    };
+const glucoseFastingColors = filteredRecords.map((r, i) => {
+    if ((r.glucoseFasting ?? 0) <= 0) return 'rgb(255, 159, 64)';
+    if (activeThresholds.fastingHigh > 0 && (r.glucoseFasting ?? 0) > activeThresholds.fastingHigh) return effectiveAlertColor;
+    return glucoseColorMap.get(i) || 'rgb(255, 159, 64)';
+});
+const glucosePostMealColors = filteredRecords.map((r, i) => {
+    if ((r.glucosePostMeal ?? 0) <= 0) return 'rgb(153, 102, 255)';
+    if (activeThresholds.postMealHigh > 0 && (r.glucosePostMeal ?? 0) > activeThresholds.postMealHigh) return effectiveAlertColor;
+    return glucoseColorMap.get(i) || 'rgb(153, 102, 255)';
+});
+const glucoseRandomColors = filteredRecords.map((r, i) => {
+    if ((r.glucoseRandom ?? 0) <= 0) return 'rgb(201, 203, 207)';
+    return glucoseColorMap.get(i) || 'rgb(201, 203, 207)';
+});
+const glucosePointRadii = filteredRecords.map((r, i) => {
+    const hasGlucose = (r.glucoseFasting ?? 0) > 0 || (r.glucosePostMeal ?? 0) > 0 || (r.glucoseRandom ?? 0) > 0;
+    if (!hasGlucose) return 4;
+    return glucoseColorMap.has(i) ? 6 : 4;
+});
 
-    const options = {
-        responsive: true,
-        maintainAspectRatio: !fullscreenChart,
-        interaction: { mode: 'index' as const, intersect: false },
-        plugins: { legend: { position: 'top' as const } },
-        scales: { y: { type: 'linear' as const, display: true, position: 'left' as const } },
-    };
+const glucoseData = {
+    labels,
+    datasets: [
+        createSmartAuxBar('大餐', colors.bigMeal, (r) => r.noteContent ? r.noteContent.includes('"bigMeal"') : false, glucoseYMax, validGlucoseCount),
+        createSmartAuxBar('節食', colors.dieting, (r) => r.noteContent ? r.noteContent.includes('"dieting"') : false, glucoseYMax, validGlucoseCount),
+        createSmartAuxBar('斷食', colors.fasting, (r) => r.noteContent ? r.noteContent.includes('"fasting"') : false, glucoseYMax, validGlucoseCount),
+        {
+            label: '空腹血糖',
+            data: filteredRecords.map(r => (r.glucoseFasting ?? 0) > 0 ? r.glucoseFasting : null),
+            borderColor: 'rgb(255, 159, 64)',
+            backgroundColor: 'rgba(255, 159, 64, 0.5)',
+            pointBackgroundColor: glucoseFastingColors,
+            pointRadius: glucosePointRadii,
+            spanGaps: true,
+            type: 'line' as const,
+            order: 1,
+            borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
+            segment: {
+                borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(255, 159, 64)'
+            }
+        },
+        {
+            label: '飯後血糖',
+            data: filteredRecords.map(r => (r.glucosePostMeal ?? 0) > 0 ? r.glucosePostMeal : null),
+            borderColor: 'rgb(153, 102, 255)',
+            backgroundColor: 'rgba(153, 102, 255, 0.5)',
+            pointBackgroundColor: glucosePostMealColors,
+            pointRadius: glucosePointRadii,
+            spanGaps: true,
+            type: 'line' as const,
+            order: 1,
+            borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
+            segment: {
+                borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(153, 102, 255)'
+            }
+        },
+        {
+            label: '臨時血糖',
+            data: filteredRecords.map(r => (r.glucoseRandom ?? 0) > 0 ? r.glucoseRandom : null),
+            borderColor: 'rgb(201, 203, 207)',
+            backgroundColor: 'rgba(201, 203, 207, 0.5)',
+            pointBackgroundColor: glucoseRandomColors,
+            pointRadius: glucosePointRadii,
+            spanGaps: true,
+            type: 'line' as const,
+            order: 1,
+            borderWidth: auxiliaryLineMode === 'x-axis' ? 3 : 2,
+            segment: {
+                borderColor: (ctx: any) => (auxiliaryLineMode === 'x-axis' && getGlucoseColorHelper(ctx.p0.parsed.x)) || 'rgb(201, 203, 207)'
+            }
+        },
+        createThresholdLine(activeThresholds.fastingHigh, '空腹高標', 'rgba(255, 159, 64, 0.6)'),
+        createThresholdLine(activeThresholds.postMealHigh, '飯後高標', 'rgba(153, 102, 255, 0.6)')
+    ].filter(Boolean) as any[]
+};
 
-    const ranges: { value: TimeRange; label: string }[] = [
-        { value: 'week', label: '一週' },
-        { value: '2week', label: '雙週' },
-        { value: 'month', label: '一個月' },
-        { value: 'quarter', label: '一季' },
-        { value: 'halfYear', label: '半年' },
-        { value: 'year', label: '一年' },
-        { value: 'all', label: '全部' },
-    ];
+const options = {
+    responsive: true,
+    maintainAspectRatio: !fullscreenChart,
+    interaction: { mode: 'index' as const, intersect: false },
+    plugins: { legend: { position: 'top' as const } },
+    scales: { y: { type: 'linear' as const, display: true, position: 'left' as const } },
+};
 
-    const chartTitles: Record<ChartType, string> = {
-        weight: '體重趨勢',
-        bp: '血壓變化',
-        glucose: '血糖紀錄',
-    };
+const ranges: { value: TimeRange; label: string }[] = [
+    { value: 'week', label: '一週' },
+    { value: '2week', label: '雙週' },
+    { value: 'month', label: '一個月' },
+    { value: 'quarter', label: '一季' },
+    { value: 'halfYear', label: '半年' },
+    { value: 'year', label: '一年' },
+    { value: 'all', label: '全部' },
+];
 
-    const getChartData = (type: ChartType) => {
-        switch (type) {
-            case 'weight': return weightData;
-            case 'bp': return bpData;
-            case 'glucose': return glucoseData;
-        }
-    };
+const chartTitles: Record<ChartType, string> = {
+    weight: '體重趨勢',
+    bp: '血壓變化',
+    glucose: '血糖紀錄',
+};
 
-    const openFullscreen = (type: ChartType) => {
-        setFsTimeRange(globalTimeRange);
-        setFullscreenChart(type);
-    };
+const getChartData = (type: ChartType) => {
+    switch (type) {
+        case 'weight': return weightData;
+        case 'bp': return bpData;
+        case 'glucose': return glucoseData;
+    }
+};
 
-    const ExpandButton = ({ type }: { type: ChartType }) => (
-        <button
-            onClick={() => openFullscreen(type)}
-            className="absolute top-2 right-2 p-1.5 bg-gray-100 hover:bg-teal-100 rounded-full transition-colors text-gray-500 hover:text-teal-600"
-            title="放大"
-        >
-            <Maximize2 className="h-4 w-4" />
-        </button>
-    );
+const openFullscreen = (type: ChartType) => {
+    setFsTimeRange(globalTimeRange);
+    setFullscreenChart(type);
+};
 
-    return (
-        <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
-                    <ExpandButton type="weight" />
-                    <h4 className="text-md font-medium text-gray-700 mb-4">體重趨勢 (點擊數值編輯)</h4>
-                    <Line ref={chartRefWeight} data={weightData} options={options} {...bindClick(chartRefWeight)} />
+const ExpandButton = ({ type }: { type: ChartType }) => (
+    <button
+        onClick={() => openFullscreen(type)}
+        className="absolute top-2 right-2 p-1.5 bg-gray-100 hover:bg-teal-100 rounded-full transition-colors text-gray-500 hover:text-teal-600"
+        title="放大"
+    >
+        <Maximize2 className="h-4 w-4" />
+    </button>
+);
+
+return (
+    <>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
+                <ExpandButton type="weight" />
+                <h4 className="text-md font-medium text-gray-700 mb-4">體重趨勢 (點擊數值編輯)</h4>
+                <Line ref={chartRefWeight} data={weightData} options={options} {...bindClick(chartRefWeight)} />
+            </div>
+            <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
+                <ExpandButton type="bp" />
+                <h4 className="text-md font-medium text-gray-700 mb-4">血壓變化 (點擊數值編輯)</h4>
+                <Line ref={chartRefBP} data={bpData} options={options} plugins={[pulsePressurePlugin]} {...bindClick(chartRefBP)} />
+            </div>
+            <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 cursor-pointer hover:border-teal-200 transition">
+                <ExpandButton type="glucose" />
+                <h4 className="text-md font-medium text-gray-700 mb-4">血糖紀錄 (點擊數值編輯)</h4>
+                <Line ref={chartRefGlucose} data={glucoseData} options={options} {...bindClick(chartRefGlucose)} />
+            </div>
+        </div>
+
+        {/* Fullscreen Modal */}
+        {fullscreenChart && (
+            <div className="fixed inset-0 z-[100] bg-white flex flex-col">
+                <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                    <h2 className="text-lg font-bold text-gray-800">{chartTitles[fullscreenChart]}</h2>
+                    <div className="flex items-center gap-4">
+                        <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">
+                            {ranges.map((range) => (
+                                <button
+                                    key={range.value}
+                                    onClick={() => setFsTimeRange(range.value)}
+                                    className={`px-2 py-1 text-xs font-medium rounded-md whitespace-nowrap transition-all ${fsTimeRange === range.value
+                                        ? 'bg-white text-teal-600 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                        }`}
+                                >
+                                    {range.label}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={() => setFullscreenChart(null)} className="p-2 hover:bg-gray-100 rounded-full">
+                            <X className="h-6 w-6" />
+                        </button>
+                    </div>
                 </div>
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
-                    <ExpandButton type="bp" />
-                    <h4 className="text-md font-medium text-gray-700 mb-4">血壓變化 (點擊數值編輯)</h4>
-                    <Line ref={chartRefBP} data={bpData} options={options} plugins={[pulsePressurePlugin]} {...bindClick(chartRefBP)} />
-                </div>
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 cursor-pointer hover:border-teal-200 transition">
-                    <ExpandButton type="glucose" />
-                    <h4 className="text-md font-medium text-gray-700 mb-4">血糖紀錄 (點擊數值編輯)</h4>
-                    <Line ref={chartRefGlucose} data={glucoseData} options={options} {...bindClick(chartRefGlucose)} />
+                <div className="flex-1 p-4 overflow-auto">
+                    <Line data={getChartData(fullscreenChart)} options={{ ...options, maintainAspectRatio: false }} />
                 </div>
             </div>
-
-            {/* Fullscreen Modal */}
-            {fullscreenChart && (
-                <div className="fixed inset-0 z-[100] bg-white flex flex-col">
-                    <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                        <h2 className="text-lg font-bold text-gray-800">{chartTitles[fullscreenChart]}</h2>
-                        <div className="flex items-center gap-4">
-                            <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">
-                                {ranges.map((range) => (
-                                    <button
-                                        key={range.value}
-                                        onClick={() => setFsTimeRange(range.value)}
-                                        className={`px-2 py-1 text-xs font-medium rounded-md whitespace-nowrap transition-all ${fsTimeRange === range.value
-                                            ? 'bg-white text-teal-600 shadow-sm'
-                                            : 'text-gray-500 hover:text-gray-900'
-                                            }`}
-                                    >
-                                        {range.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <button onClick={() => setFullscreenChart(null)} className="p-2 hover:bg-gray-100 rounded-full">
-                                <X className="h-6 w-6" />
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex-1 p-4 overflow-auto">
-                        <Line data={getChartData(fullscreenChart)} options={{ ...options, maintainAspectRatio: false }} />
-                    </div>
-                </div>
-            )}
-        </>
-    );
+        )}
+    </>
+);
 };
