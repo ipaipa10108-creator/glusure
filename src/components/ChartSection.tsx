@@ -215,7 +215,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     // Modified Aux Bar Creator: In X-axis mode, still show legend but with hidden data
     // Modified Aux Bar Creator: In X-axis mode, still show legend but with hidden data
-    const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, validCount: number) => {
+    const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, _validCount: number) => {
         if (!showAuxiliaryLines) return null;
 
         return {
@@ -338,7 +338,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         id: 'pulsePressureLines',
         afterDatasetsDraw(chart: any) {
             if (!showThresholds) return;
-            const { ctx, scales: { x, y } } = chart;
+            const { ctx, scales: { y } } = chart;
 
 
 
