@@ -43,7 +43,6 @@ interface ChartSectionProps {
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
     alertPointColor?: string; // 超過警示線的資料點顏色
-    auxiliaryLineMode?: 'y-axis' | 'x-axis';
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
