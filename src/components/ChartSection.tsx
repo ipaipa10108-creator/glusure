@@ -218,10 +218,15 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const createSmartAuxBar = (label: string, color: string, condition: (r: HealthRecord) => boolean, yMax: number, _validCount: number) => {
         if (!showAuxiliaryLines) return null;
 
+        // In X-axis mode with >=2 points: keep legend but hide actual bars
+        const isXAxisModeWithLines = auxiliaryLineMode === 'x-axis' && _validCount >= 2;
+
         return {
             label: label,
-            // Show data in all modes (User requested to see data even in X-axis mode)
-            data: filteredRecords.map(r => condition(r) ? yMax : null),
+            // Show data only in Y-axis mode or when isolated
+            data: isXAxisModeWithLines
+                ? filteredRecords.map(() => null) // No bars but legend visible
+                : filteredRecords.map(r => condition(r) ? yMax : null),
             backgroundColor: color,
             type: 'bar' as const,
             barThickness: 2,
@@ -338,15 +343,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         id: 'pulsePressureLines',
         afterDatasetsDraw(chart: any) {
             if (!showThresholds) return;
-            const { ctx, scales: { y } } = chart;
-
-
-
-            // Safer: Find dataset index for '收縮壓'
-            const sysDatasetIndex = chart.data.datasets.findIndex((d: any) => d.label === '收縮壓');
-            if (sysDatasetIndex === -1) return;
-
-            const sysMeta = chart.getDatasetMeta(sysDatasetIndex);
+            const { ctx, scales: { x, y } } = chart;
 
             ctx.save();
             ctx.beginPath();
@@ -355,9 +352,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             ctx.setLineDash([4, 4]);
 
             filteredRecords.forEach((r, index) => {
-                const sysPoint = sysMeta.data[index];
-                if (sysPoint && isPulsePressureAbnormal(r)) {
-                    const xPos = sysPoint.x;
+                if (isPulsePressureAbnormal(r)) {
+                    const xPos = x.getPixelForValue(index);
                     const ySys = y.getPixelForValue(r.systolic);
                     const yDia = y.getPixelForValue(r.diastolic);
 
