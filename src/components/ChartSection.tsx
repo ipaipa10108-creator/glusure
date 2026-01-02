@@ -237,6 +237,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     const weightPointColors = filteredRecords.map((r, i) => {
         if ((r.weight ?? 0) <= 0) return 'rgb(53, 162, 235)';
+        if ((activeThresholds.weightHigh > 0 && r.weight > activeThresholds.weightHigh) ||
+            (activeThresholds.weightLow > 0 && r.weight < activeThresholds.weightLow)) {
+            return effectiveAlertColor;
+        }
         return weightColorMap.get(i) || 'rgb(53, 162, 235)';
     });
 
@@ -341,9 +345,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             if (!showThresholds) return;
             const { ctx, scales: { x, y } } = chart;
 
-            // 確保是血壓圖表 (檢查是否有收縮壓 dataset)
-            const isBPChart = chart.data.datasets.some((d: any) => d.label === '收縮壓');
-            if (!isBPChart) return;
+
 
             ctx.save();
             ctx.beginPath();
@@ -465,10 +467,12 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     const glucoseFastingColors = filteredRecords.map((r, i) => {
         if ((r.glucoseFasting ?? 0) <= 0) return 'rgb(255, 159, 64)';
+        if (activeThresholds.fastingHigh > 0 && r.glucoseFasting > activeThresholds.fastingHigh) return effectiveAlertColor;
         return glucoseColorMap.get(i) || 'rgb(255, 159, 64)';
     });
     const glucosePostMealColors = filteredRecords.map((r, i) => {
         if ((r.glucosePostMeal ?? 0) <= 0) return 'rgb(153, 102, 255)';
+        if (activeThresholds.postMealHigh > 0 && r.glucosePostMeal > activeThresholds.postMealHigh) return effectiveAlertColor;
         return glucoseColorMap.get(i) || 'rgb(153, 102, 255)';
     });
     const glucoseRandomColors = filteredRecords.map((r, i) => {
