@@ -152,28 +152,34 @@ function App() {
             }
         });
 
-        // 2. Close Modal Immediately
+        // 2. Close Modal Immediately & Unlock UI
         setIsFormOpen(false);
         setEditingRecord(null);
 
-        // 3. Background Save
-        setPendingSaves(prev => prev + 1);
-        try {
-            if (record.id) {
-                await updateRecord(record);
-            } else {
-                await saveRecord(record);
+        // 3. Fire-and-forget Background Process
+        (async () => {
+            setPendingSaves(prev => prev + 1);
+            try {
+                // Determine ID again for consistency if needed, but api.ts handles it.
+                if (record.id) {
+                    await updateRecord(record);
+                } else {
+                    await saveRecord(record);
+                }
+                // 4. Background Sync
+                await loadData();
+                setSaveSuccess(true);
+                setTimeout(() => setSaveSuccess(false), 3000);
+            } catch (error) {
+                console.error("Background save failed", error);
+                // Note: Optimistic update rollback is complex, omitting for speed prioritization as requested
+            } finally {
+                setPendingSaves(prev => Math.max(0, prev - 1));
             }
-            // 4. Background Sync
-            await loadData();
-            setSaveSuccess(true);
-            setTimeout(() => setSaveSuccess(false), 3000);
-        } catch (error) {
-            console.error("Background save failed", error);
-            // TODO: Ideally revert optimistic update here, but for now we rely on next loadData correction
-        } finally {
-            setPendingSaves(prev => Math.max(0, prev - 1));
-        }
+        })();
+
+        // Return immediately to let callsites (RecordForm, ExerciseModal) unlock
+        return Promise.resolve();
     };
 
     // ... existing handlers ...
