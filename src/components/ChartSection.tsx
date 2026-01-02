@@ -333,33 +333,63 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     });
 
     // 建立脈壓差異常虛線資料集 (只在警示線開啟時顯示)
-    const createPulsePressureAlertLines = () => {
-        if (!showThresholds) return [];
+    // 使用分段 dataset 來繪製垂直虛線連接收縮壓和舒張壓
+    // Custom Plugin to draw vertical dashed lines for abnormal pulse pressure
+    const pulsePressurePlugin = {
+        id: 'pulsePressureLines',
+        afterDatasetsDraw(chart: any) {
+            if (!showThresholds) return;
+            const { ctx, scales: { x, y } } = chart;
 
-        // 為每個脈壓差異常的點建立虛線連接收縮壓和舒張壓
-        const alertDatasets: any[] = [];
+            // 確保是血壓圖表 (檢查是否有收縮壓 dataset)
+            const isBPChart = chart.data.datasets.some((d: any) => d.label === '收縮壓');
+            if (!isBPChart) return;
 
-        filteredRecords.forEach((r, index) => {
-            if (isPulsePressureAbnormal(r)) {
-                // 建立這個點的連線資料集
-                alertDatasets.push({
-                    label: index === filteredRecords.findIndex(rec => isPulsePressureAbnormal(rec)) ? '脈壓差異常' : '',
-                    data: filteredRecords.map((_, i) => {
-                        if (i !== index) return null;
-                        return [r.diastolic, r.systolic]; // 用於繪製垂直線
-                    }),
-                    borderColor: effectiveAlertColor,
-                    borderWidth: 2,
-                    borderDash: [4, 4],
-                    pointRadius: 0,
-                    showLine: false,
-                    type: 'line' as const,
-                    order: 2,
-                });
-            }
-        });
+            ctx.save();
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = effectiveAlertColor;
+            ctx.setLineDash([4, 4]);
 
-        return alertDatasets;
+            filteredRecords.forEach((r, index) => {
+                if (isPulsePressureAbnormal(r)) {
+                    const xPos = x.getPixelForValue(index);
+                    const ySys = y.getPixelForValue(r.systolic);
+                    const yDia = y.getPixelForValue(r.diastolic);
+
+                    // Draw vertical line only for lines within chart area
+                    if (xPos >= chart.chartArea.left && xPos <= chart.chartArea.right) {
+                        ctx.moveTo(xPos, ySys);
+                        ctx.lineTo(xPos, yDia);
+                    }
+                }
+            });
+
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    // 建立脈壓差異常虛線資料集 (僅用於顯示圖例)
+    const createPulsePressureAlertDataset = () => {
+        if (!showThresholds) return null;
+
+        // 紀錄每個點是否需要繪製虛線
+        const hasAbnormal = filteredRecords.some(r => isPulsePressureAbnormal(r));
+        if (!hasAbnormal) return null;
+
+        // 建立中點資料集 - 用於圖例顯示
+        return {
+            label: '脈壓差異常',
+            data: [], // 不繪製實際點，由 plugin 繪製
+            borderColor: effectiveAlertColor,
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [4, 4],
+            pointRadius: 0,
+            type: 'line' as const,
+            order: 0,
+        };
     };
 
     const bpData = {
@@ -415,7 +445,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             },
             createThresholdLine(activeThresholds.systolicHigh, '收縮壓警示', 'rgba(255, 99, 132, 0.6)'),
             createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
-            ...createPulsePressureAlertLines()
+            createThresholdLine(activeThresholds.diastolicHigh, '舒張壓警示', 'rgba(75, 192, 192, 0.6)'),
+            createPulsePressureAlertDataset()
         ].filter(Boolean) as any[]
     };
 
@@ -564,7 +595,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition">
                     <ExpandButton type="bp" />
                     <h4 className="text-md font-medium text-gray-700 mb-4">血壓變化 (點擊數值編輯)</h4>
-                    <Line ref={chartRefBP} data={bpData} options={options} {...bindClick(chartRefBP)} />
+                    <Line ref={chartRefBP} data={bpData} options={options} plugins={[pulsePressurePlugin]} {...bindClick(chartRefBP)} />
                 </div>
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 cursor-pointer hover:border-teal-200 transition">
                     <ExpandButton type="glucose" />

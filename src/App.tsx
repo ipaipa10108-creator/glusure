@@ -3,7 +3,7 @@ import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { PhysicianView } from './components/PhysicianView';
-import { SettingsView } from './components/SettingsView';
+import { SettingsView, HelpModal } from './components/SettingsView';
 import { RecordList } from './components/RecordList';
 import { RecordForm } from './components/RecordForm';
 import { HealthRecord, UserSettings } from './types';
@@ -19,6 +19,7 @@ function App() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
     const [isAppLoading, setIsAppLoading] = useState(true);
+    const [showHelpModal, setShowHelpModal] = useState(false);
 
     // Initial Login Check
     useEffect(() => {
@@ -189,7 +190,7 @@ function App() {
             onTouchEnd={onTouchEnd}
             className="min-h-screen"
         >
-            <Layout userName={user.name} onLogout={handleLogout} onSettings={() => setViewMode('settings')}>
+            <Layout userName={user.name} onLogout={handleLogout} onSettings={() => setViewMode('settings')} onHelp={() => setShowHelpModal(true)}>
                 {/* View Switcher */}
                 <div className="flex justify-center mb-6 space-x-2 sm:space-x-4">
                     <button
@@ -281,6 +282,9 @@ function App() {
                     userName={user.name}
                 />
             </Layout>
+
+            {/* Help Modal */}
+            <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
         </div>
     );
 }

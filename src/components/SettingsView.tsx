@@ -81,15 +81,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                         <Lock className="w-5 h-5 mr-2 text-teal-600" />
                         <h3 className="text-lg font-semibold text-gray-800">帳號與設定</h3>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowHelp(true)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-teal-600 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition-colors"
-                        title="使用說明"
-                    >
-                        <HelpCircle className="w-4 h-4" />
-                        <span>說明</span>
-                    </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-8">
@@ -500,8 +491,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
     );
 };
 
-// 使用說明 Modal 組件 (內部使用)
-const HelpModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+// 使用說明 Modal 組件 (可導出使用)
+export const HelpModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (

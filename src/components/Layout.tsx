@@ -1,14 +1,15 @@
 import React from 'react';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, HelpCircle } from 'lucide-react';
 
 interface LayoutProps {
     children: React.ReactNode;
     userName: string;
     onLogout: () => void;
     onSettings?: () => void;
+    onHelp?: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout, onSettings }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout, onSettings, onHelp }) => {
     return (
         <div className="min-h-screen bg-gray-50">
             <nav className="bg-white shadow-sm sticky top-0 z-50">
@@ -18,6 +19,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout, on
                             <span className="text-2xl font-bold text-teal-600">Glusure</span>
                         </div>
                         <div className="flex items-center space-x-2 sm:space-x-4">
+                            {onHelp && (
+                                <button
+                                    onClick={onHelp}
+                                    className="p-2 rounded-full text-gray-500 hover:bg-teal-50 hover:text-teal-600 transition-colors"
+                                    title="使用說明"
+                                >
+                                    <HelpCircle className="h-5 w-5" />
+                                </button>
+                            )}
                             {onSettings && (
                                 <button
                                     onClick={onSettings}
