@@ -7,9 +7,11 @@ interface LayoutProps {
     onLogout: () => void;
     onSettings?: () => void;
     onHelp?: () => void;
+    pendingSaves?: number;
+    saveSuccess?: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout, onSettings, onHelp }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout, onSettings, onHelp, pendingSaves = 0, saveSuccess = false }) => {
     return (
         <div className="min-h-screen bg-gray-50">
             <nav className="bg-white shadow-sm sticky top-0 z-50">
@@ -19,6 +21,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, userName, onLogout, on
                             <span className="text-2xl font-bold text-teal-600">Glusure</span>
                         </div>
                         <div className="flex items-center space-x-2 sm:space-x-4">
+                            {/* Save Status Indicators */}
+                            <div className="flex items-center text-sm font-bold mr-2">
+                                {pendingSaves > 0 && (
+                                    <span className="text-red-500 animate-pulse whitespace-nowrap">
+                                        儲存中 ({pendingSaves})...
+                                    </span>
+                                )}
+                                {pendingSaves === 0 && saveSuccess && (
+                                    <span className="text-green-500 animate-fade-out whitespace-nowrap">
+                                        儲存成功
+                                    </span>
+                                )}
+                            </div>
+
                             {onHelp && (
                                 <button
                                     onClick={onHelp}

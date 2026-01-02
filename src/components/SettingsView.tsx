@@ -525,6 +525,7 @@ export const HelpModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ 
                             <li>新增 / 編輯健康數據（體重、血壓、心率、血糖）</li>
                             <li>結構化備註：飲食 🥩 、運動 🚶 、天氣 ☀️ 、隨手記 📝</li>
                             <li>點擊圖表資料點可快速編輯該筆紀錄</li>
+                            <li>儲存時背景執行，可查看上方標題列的狀態指示燈 (紅: 儲存中 / 綠: 成功)</li>
                         </ul>
                     </section>
 

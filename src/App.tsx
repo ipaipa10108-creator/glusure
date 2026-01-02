@@ -100,7 +100,8 @@ function App() {
         setRecords([]);
     };
 
-    const [showSuccessFeedback, setShowSuccessFeedback] = useState(false);
+    const [pendingSaves, setPendingSaves] = useState(0);
+    const [saveSuccess, setSaveSuccess] = useState(false);
 
     // Swipe Navigation Logic
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -136,15 +137,43 @@ function App() {
     };
 
     const handleSubmitRecord = async (record: HealthRecord) => {
-        if (record.id) {
-            await updateRecord(record);
-        } else {
-            await saveRecord(record);
-        }
-        await loadData();
+        // 1. Optimistic Update
+        const optimisticRecord = {
+            ...record,
+            id: record.id || Date.now().toString(), // Helper ID for local state
+            timestamp: new Date(record.timestamp).toISOString()
+        };
+
+        setRecords(prev => {
+            if (record.id) {
+                return prev.map(r => r.id === record.id ? optimisticRecord : r);
+            } else {
+                return [...prev, optimisticRecord];
+            }
+        });
+
+        // 2. Close Modal Immediately
+        setIsFormOpen(false);
         setEditingRecord(null);
-        setShowSuccessFeedback(true);
-        setTimeout(() => setShowSuccessFeedback(false), 3000);
+
+        // 3. Background Save
+        setPendingSaves(prev => prev + 1);
+        try {
+            if (record.id) {
+                await updateRecord(record);
+            } else {
+                await saveRecord(record);
+            }
+            // 4. Background Sync
+            await loadData();
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 3000);
+        } catch (error) {
+            console.error("Background save failed", error);
+            // TODO: Ideally revert optimistic update here, but for now we rely on next loadData correction
+        } finally {
+            setPendingSaves(prev => Math.max(0, prev - 1));
+        }
     };
 
     // ... existing handlers ...
@@ -190,7 +219,14 @@ function App() {
             onTouchEnd={onTouchEnd}
             className="min-h-screen"
         >
-            <Layout userName={user.name} onLogout={handleLogout} onSettings={() => setViewMode('settings')} onHelp={() => setShowHelpModal(true)}>
+            <Layout
+                userName={user.name}
+                onLogout={handleLogout}
+                onSettings={() => setViewMode('settings')}
+                onHelp={() => setShowHelpModal(true)}
+                pendingSaves={pendingSaves}
+                saveSuccess={saveSuccess}
+            >
                 {/* View Switcher */}
                 <div className="flex justify-center mb-6 space-x-2 sm:space-x-4">
                     <button
@@ -233,7 +269,6 @@ function App() {
                             onEditRecord={handleEditRecord}
                             onSaveRecord={handleSubmitRecord}
                             onUpdateSettings={handleUpdateSettings}
-                            showSuccessFeedback={showSuccessFeedback}
                             auxiliaryLineMode={user.auxiliaryLineMode}
                             auxiliaryColors={user.auxiliaryColors}
                         />

@@ -13,7 +13,6 @@ interface DashboardProps {
     onEditRecord: (record: HealthRecord) => void;
     onSaveRecord: (record: HealthRecord) => Promise<void>;
     onUpdateSettings: (settings: Partial<UserSettings>) => Promise<void>;
-    showSuccessFeedback?: boolean;
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
 }
@@ -25,7 +24,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onEditRecord,
     onSaveRecord,
     onUpdateSettings,
-    showSuccessFeedback,
     auxiliaryLineMode,
     auxiliaryColors
 }) => {
@@ -88,14 +86,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     return (
         <div className="space-y-6 relative">
-            {/* Success Feedback Overlay */}
-            {showSuccessFeedback && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-                    <div className="bg-white/90 px-8 py-4 rounded-full shadow-2xl border-2 border-green-100 animate-fade-out-up">
-                        <span className="text-2xl font-bold text-green-600 tracking-wider">紀錄成功</span>
-                    </div>
-                </div>
-            )}
 
             {/* Alert Section */}
             {hasWeightAlert && (
