@@ -196,7 +196,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 auxiliaryLineMode={auxiliaryLineMode}
                 auxiliaryColors={auxiliaryColors}
                 alertPointColor={userSettings?.alertPointColor}
-                showExerciseDuration={userSettings?.showExerciseDuration}
                 onToggleThresholds={handleToggleThresholds}
                 onToggleAuxiliaryLines={handleToggleAuxiliaryLines}
             />

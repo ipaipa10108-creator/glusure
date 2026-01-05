@@ -43,14 +43,13 @@ interface ChartSectionProps {
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
     alertPointColor?: string; // 超過警示線的資料點顏色
-    showExerciseDuration?: boolean; // New Prop
     onToggleThresholds?: () => void;
     onToggleAuxiliaryLines?: () => void;
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor, showExerciseDuration, onToggleThresholds, onToggleAuxiliaryLines }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor, onToggleThresholds, onToggleAuxiliaryLines }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -235,57 +234,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         };
     };
 
-    // Plugin: Exercise Duration Display
-    const exerciseDurationPlugin = useMemo(() => ({
-        id: 'exerciseDurationDisplay',
-        afterDatasetsDraw(chart: any) {
-            // console.log('Plugin Draw: AuxLines:', showAuxiliaryLines, 'ShowDur:', showExerciseDuration, 'Mode:', auxiliaryLineMode);
-            if (!showAuxiliaryLines || !showExerciseDuration || auxiliaryLineMode !== 'y-axis') return;
-            const { ctx, scales: { x, y } } = chart;
-            if (!x || !y) return;
-
-            ctx.save();
-            ctx.font = 'bold 10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-
-            filteredRecords.forEach((r, i) => {
-                if (r.noteContent && r.noteContent.includes('exercises')) {
-                    try {
-                        const note = JSON.parse(r.noteContent);
-                        if (note.exercises && note.exercises.length > 0) {
-                            const ex = note.exercises.find((e: any) => e.durationMinutes > 0);
-
-                            // Debug Log
-                            // console.log(`Record ${i} has exercise:`, ex);
-
-                            // Robust duration parsing
-                            const durationRaw = ex.durationMinutes;
-                            const duration = typeof durationRaw === 'number' ? durationRaw : (durationRaw ? parseInt(durationRaw) : 0);
-
-                            if (duration && duration > 0) {
-                                const xPos = x.getPixelForValue(i);
-                                // Draw near the top of the bar.
-                                // Since we added padding and maxVal headroom, we can draw slightly above the bar.
-                                const yPos = y.getPixelForValue(weightYMax);
-
-                                // Force Black color for visibility logic
-                                ctx.fillStyle = '#374151'; // Gray-700
-                                // yPos is the top of the bar. Draw slightly above it.
-                                ctx.fillText(duration.toString() + 'm', xPos, yPos - 5);
-                                // console.log(`Drawing Duration ${duration} at ${xPos}, ${yPos - 5}`);
-                            }
-                        }
-                    } catch (e) {
-                        // ignore parse error
-                    }
-                }
-            });
-            ctx.restore();
-        }
-    }), [showAuxiliaryLines, showExerciseDuration, auxiliaryLineMode, filteredRecords, colors, weightYMax]);
-
-
     const weightPointColors = filteredRecords.map((r, i) => {
         if ((r.weight ?? 0) <= 0) return 'rgb(53, 162, 235)';
         if ((activeThresholds.weightHigh > 0 && r.weight > activeThresholds.weightHigh) ||
@@ -324,34 +272,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 segment: {
                     borderColor: (ctx: any) => {
                         if (!showAuxiliaryLines || auxiliaryLineMode !== 'x-axis') return undefined; // Only in X-axis mode
-
-                        // New Logic: Check for events between start (p0) and end (p1) of the segment
-                        const startIdx = ctx.p0.parsed.x;
-                        const endIdx = ctx.p1.parsed.x;
-
-                        // 1. Check strict range (Backwards)
-                        for (let i = endIdx; i > startIdx; i--) {
-                            const color = getWeightColor(i);
-                            if (color) return color;
-                        }
-
-                        // 2. Check Forward Lookahead (Same Timestamp)
-                        // If endIdx record has same timestamp as endIdx+1, endIdx+2... check them too.
-                        // Because spanGaps connects to the *first* valid point, but the exercise might be in the *next* record with same time.
-                        if (endIdx < filteredRecords.length - 1) {
-                            const endTime = new Date(filteredRecords[endIdx].timestamp).getTime();
-                            for (let i = endIdx + 1; i < filteredRecords.length; i++) {
-                                const nextTime = new Date(filteredRecords[i].timestamp).getTime();
-                                if (nextTime === endTime) {
-                                    const color = getWeightColor(i);
-                                    if (color) return color;
-                                } else {
-                                    break; // Different time, stop looking
-                                }
-                            }
-                        }
-
-                        return 'rgb(53, 162, 235)';
+                        const color = getWeightColor(ctx.p0.parsed.x);
+                        return color || 'rgb(53, 162, 235)';
                     }
                 }
             },
@@ -661,11 +583,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
         if (minVal !== undefined && minVal < 0) minVal = 0;
 
-        // Ensure Y-axis max covers the Auxiliary Bars (weightYMax) + headroom for text
-        if (type === 'weight' && maxVal !== undefined && weightYMax) {
-            maxVal = Math.max(maxVal, weightYMax + 5); // Add extra 5 headroom for text
-        }
-
         const scales: any = {
             y: {
                 type: 'linear' as const,
@@ -701,12 +618,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             maintainAspectRatio: false, // Always false to respect container height
             interaction: { mode: 'index' as const, intersect: false },
             plugins: { legend: { position: 'top' as const } },
-            scales: scales,
-            layout: {
-                padding: {
-                    top: 20 // Add explicit padding to prevent clipping of text at top
-                }
-            }
+            scales: scales
         };
     };
 
@@ -756,7 +668,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                     <ExpandButton type="weight" />
                     <h4 className="text-md font-medium text-gray-700 mb-2">體重趨勢 (點擊數值編輯)</h4>
                     <div className="flex-1 w-full h-[calc(100%-2rem)]">
-                        <Line ref={chartRefWeight} data={weightData} options={createOptions('weight')} plugins={[exerciseDurationPlugin]} {...bindClick(chartRefWeight)} />
+                        <Line ref={chartRefWeight} data={weightData} options={createOptions('weight')} {...bindClick(chartRefWeight)} />
                     </div>
                 </div>
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition h-80">

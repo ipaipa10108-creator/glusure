@@ -143,19 +143,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                 />
                             </label>
 
-                            {/* Show Exercise Duration Toggle - Only show if Aux lines are enabled */}
-                            {user.showAuxiliaryLines !== false && (
-                                <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 ml-6 border-l-4 border-l-teal-500">
-                                    <span className="text-sm text-gray-700">顯示運動時間 (Y軸模式)</span>
-                                    <input
-                                        type="checkbox"
-                                        className="h-5 w-5 text-teal-600 rounded border-gray-300 focus:ring-teal-500"
-                                        checked={user.showExerciseDuration === true} // Default to false
-                                        onChange={(e) => onUpdate({ ...user, showExerciseDuration: e.target.checked })}
-                                    />
-                                </label>
-                            )}
-
                             {/* Auxiliary Line Mode Selection */}
                             {user.showAuxiliaryLines !== false && (
                                 <div className="p-3 border border-gray-200 rounded-lg bg-gray-50 sm:col-span-2">

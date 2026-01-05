@@ -61,7 +61,6 @@ export interface UserSettings {
     showAlertLines?: boolean;
     showAuxiliaryLines?: boolean;
     enableSwipeNav?: boolean;
-    showExerciseDuration?: boolean;
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
     alertPointColor?: string; // 超過警示線的資料點顏色
