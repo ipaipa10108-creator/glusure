@@ -239,6 +239,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     const exerciseDurationPlugin = useMemo(() => ({
         id: 'exerciseDurationDisplay',
         afterDatasetsDraw(chart: any) {
+            // console.log('Plugin Draw: AuxLines:', showAuxiliaryLines, 'ShowDur:', showExerciseDuration, 'Mode:', auxiliaryLineMode);
             if (!showAuxiliaryLines || !showExerciseDuration || auxiliaryLineMode !== 'y-axis') return;
             const { ctx, scales: { x, y } } = chart;
             if (!x || !y) return;
@@ -253,9 +254,11 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                     try {
                         const note = JSON.parse(r.noteContent);
                         if (note.exercises && note.exercises.length > 0) {
-                            // Find max duration if multiple, or sum? Usually one per record.
-                            // Let's take the first non-zero duration.
                             const ex = note.exercises.find((e: any) => e.durationMinutes > 0);
+
+                            // Debug Log
+                            // console.log(`Record ${i} has exercise:`, ex);
+
                             if (ex) {
                                 const duration = ex.durationMinutes;
                                 const xPos = x.getPixelForValue(i);
@@ -264,18 +267,17 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                                 const yPos = y.getPixelForValue(weightYMax);
 
                                 // Set color matching the exercise type if possible?
-                                // Or just generic text color. The user image shows Green text (matches "Walking"?).
-                                // Let's try to match the exercise color.
                                 const type = ex.type;
                                 let color = '#666';
                                 if (type === 'resistance') color = colors.resistance;
                                 else if (type === 'cycling') color = colors.cycling;
                                 else if (type === 'walking' || type === 'other') color = colors.walking;
-                                else color = colors.walking; // Default green-ish like image
+                                else color = colors.walking;
 
                                 ctx.fillStyle = color;
                                 // yPos is the top of the bar. Draw slightly above it.
                                 ctx.fillText(duration.toString(), xPos, yPos - 5);
+                                // console.log(`Drawing Duration ${duration} at ${xPos}, ${yPos - 5}`);
                             }
                         }
                     } catch (e) {
@@ -331,17 +333,28 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                         const startIdx = ctx.p0.parsed.x;
                         const endIdx = ctx.p1.parsed.x;
 
-                        // Iterate backwards from endIdx to startIdx + 1 to find the latest event in this interval
+                        // 1. Check strict range (Backwards)
                         for (let i = endIdx; i > startIdx; i--) {
                             const color = getWeightColor(i);
-                            if (color) {
-                                console.log(`Segment Color Found: ${color} at index ${i} for segment ${startIdx}-${endIdx}`);
-                                return color;
+                            if (color) return color;
+                        }
+
+                        // 2. Check Forward Lookahead (Same Timestamp)
+                        // If endIdx record has same timestamp as endIdx+1, endIdx+2... check them too.
+                        // Because spanGaps connects to the *first* valid point, but the exercise might be in the *next* record with same time.
+                        if (endIdx < filteredRecords.length - 1) {
+                            const endTime = new Date(filteredRecords[endIdx].timestamp).getTime();
+                            for (let i = endIdx + 1; i < filteredRecords.length; i++) {
+                                const nextTime = new Date(filteredRecords[i].timestamp).getTime();
+                                if (nextTime === endTime) {
+                                    const color = getWeightColor(i);
+                                    if (color) return color;
+                                } else {
+                                    break; // Different time, stop looking
+                                }
                             }
                         }
 
-                        // Fallback to p0 color if it's the start point of an event (though loop above covers p1)
-                        // Or default blue
                         return 'rgb(53, 162, 235)';
                     }
                 }
