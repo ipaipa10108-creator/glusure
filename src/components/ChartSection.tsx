@@ -39,17 +39,14 @@ interface ChartSectionProps {
     referenceDate?: Date;
     thresholds?: HealthThresholds;
     showThresholds?: boolean;
-    showAuxiliaryLines?: boolean;
-    auxiliaryLineMode?: 'y-axis' | 'x-axis';
-    auxiliaryColors?: AuxiliaryColors;
-    alertPointColor?: string; // 超過警示線的資料點顏色
+    showExerciseDuration?: boolean; // New Prop
     onToggleThresholds?: () => void;
     onToggleAuxiliaryLines?: () => void;
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor, onToggleThresholds, onToggleAuxiliaryLines }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor, showExerciseDuration, onToggleThresholds, onToggleAuxiliaryLines }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -234,6 +231,60 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         };
     };
 
+    // Plugin: Exercise Duration Display
+    const exerciseDurationPlugin = useMemo(() => ({
+        id: 'exerciseDurationDisplay',
+        afterDatasetsDraw(chart: any) {
+            if (!showAuxiliaryLines || !showExerciseDuration || auxiliaryLineMode !== 'y-axis') return;
+            const { ctx, scales: { x, y } } = chart;
+            if (!x || !y) return;
+
+            ctx.save();
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+
+            filteredRecords.forEach((r, i) => {
+                if (r.noteContent && r.noteContent.includes('exercises')) {
+                    try {
+                        const note = JSON.parse(r.noteContent);
+                        if (note.exercises && note.exercises.length > 0) {
+                            // Find max duration if multiple, or sum? Usually one per record.
+                            // Let's take the first non-zero duration.
+                            const ex = note.exercises.find((e: any) => e.durationMinutes > 0);
+                            if (ex) {
+                                const duration = ex.durationMinutes;
+                                const xPos = x.getPixelForValue(i);
+                                // Draw near the top of the bar (weightYMax)
+                                // We need to know the Y pixel for weightYMax.
+                                // Since we use `createSmartAuxBar` which uses `weightYMax` as data value.
+                                // We can use the scale to get pixel for weightYMax.
+                                const yPos = y.getPixelForValue(weightYMax);
+
+                                // Set color matching the exercise type if possible?
+                                // Or just generic text color. The user image shows Green text (matches "Walking"?).
+                                // Let's try to match the exercise color.
+                                const type = ex.type;
+                                let color = '#666';
+                                if (type === 'resistance') color = colors.resistance;
+                                else if (type === 'cycling') color = colors.cycling;
+                                else if (type === 'walking' || type === 'other') color = colors.walking;
+                                else color = colors.walking; // Default green-ish like image
+
+                                ctx.fillStyle = color;
+                                ctx.fillText(duration.toString(), xPos, yPos - 2);
+                            }
+                        }
+                    } catch (e) {
+                        // ignore parse error
+                    }
+                }
+            });
+            ctx.restore();
+        }
+    }), [showAuxiliaryLines, showExerciseDuration, auxiliaryLineMode, filteredRecords, colors, weightYMax]);
+
+
     const weightPointColors = filteredRecords.map((r, i) => {
         if ((r.weight ?? 0) <= 0) return 'rgb(53, 162, 235)';
         if ((activeThresholds.weightHigh > 0 && r.weight > activeThresholds.weightHigh) ||
@@ -272,8 +323,20 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 segment: {
                     borderColor: (ctx: any) => {
                         if (!showAuxiliaryLines || auxiliaryLineMode !== 'x-axis') return undefined; // Only in X-axis mode
-                        const color = getWeightColor(ctx.p0.parsed.x);
-                        return color || 'rgb(53, 162, 235)';
+
+                        // New Logic: Check for events between start (p0) and end (p1) of the segment
+                        const startIdx = ctx.p0.parsed.x;
+                        const endIdx = ctx.p1.parsed.x;
+
+                        // Iterate backwards from endIdx to startIdx + 1 to find the latest event in this interval
+                        for (let i = endIdx; i > startIdx; i--) {
+                            const color = getWeightColor(i);
+                            if (color) return color;
+                        }
+
+                        // Fallback to p0 color if it's the start point of an event (though loop above covers p1)
+                        // Or default blue
+                        return 'rgb(53, 162, 235)';
                     }
                 }
             },
@@ -668,7 +731,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                     <ExpandButton type="weight" />
                     <h4 className="text-md font-medium text-gray-700 mb-2">體重趨勢 (點擊數值編輯)</h4>
                     <div className="flex-1 w-full h-[calc(100%-2rem)]">
-                        <Line ref={chartRefWeight} data={weightData} options={createOptions('weight')} {...bindClick(chartRefWeight)} />
+                        <Line ref={chartRefWeight} data={weightData} options={createOptions('weight')} plugins={[exerciseDurationPlugin]} {...bindClick(chartRefWeight)} />
                     </div>
                 </div>
                 <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition h-80">
