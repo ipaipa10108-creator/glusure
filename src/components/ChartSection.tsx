@@ -259,24 +259,20 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                             // Debug Log
                             // console.log(`Record ${i} has exercise:`, ex);
 
-                            if (ex) {
-                                const duration = ex.durationMinutes;
+                            // Robust duration parsing
+                            const durationRaw = ex.durationMinutes;
+                            const duration = typeof durationRaw === 'number' ? durationRaw : (durationRaw ? parseInt(durationRaw) : 0);
+
+                            if (duration && duration > 0) {
                                 const xPos = x.getPixelForValue(i);
                                 // Draw near the top of the bar.
                                 // Since we added padding and maxVal headroom, we can draw slightly above the bar.
                                 const yPos = y.getPixelForValue(weightYMax);
 
-                                // Set color matching the exercise type if possible?
-                                const type = ex.type;
-                                let color = '#666';
-                                if (type === 'resistance') color = colors.resistance;
-                                else if (type === 'cycling') color = colors.cycling;
-                                else if (type === 'walking' || type === 'other') color = colors.walking;
-                                else color = colors.walking;
-
-                                ctx.fillStyle = color;
+                                // Force Black color for visibility logic
+                                ctx.fillStyle = '#374151'; // Gray-700
                                 // yPos is the top of the bar. Draw slightly above it.
-                                ctx.fillText(duration.toString(), xPos, yPos - 5);
+                                ctx.fillText(duration.toString() + 'm', xPos, yPos - 5);
                                 // console.log(`Drawing Duration ${duration} at ${xPos}, ${yPos - 5}`);
                             }
                         }
