@@ -259,10 +259,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                             if (ex) {
                                 const duration = ex.durationMinutes;
                                 const xPos = x.getPixelForValue(i);
-                                // Draw near the top of the bar (weightYMax)
-                                // We need to know the Y pixel for weightYMax.
-                                // Since we use `createSmartAuxBar` which uses `weightYMax` as data value.
-                                // We can use the scale to get pixel for weightYMax.
+                                // Draw near the top of the bar.
+                                // Since we added padding and maxVal headroom, we can draw slightly above the bar.
                                 const yPos = y.getPixelForValue(weightYMax);
 
                                 // Set color matching the exercise type if possible?
@@ -276,7 +274,8 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                                 else color = colors.walking; // Default green-ish like image
 
                                 ctx.fillStyle = color;
-                                ctx.fillText(duration.toString(), xPos, yPos - 2);
+                                // yPos is the top of the bar. Draw slightly above it.
+                                ctx.fillText(duration.toString(), xPos, yPos - 5);
                             }
                         }
                     } catch (e) {
@@ -335,7 +334,10 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                         // Iterate backwards from endIdx to startIdx + 1 to find the latest event in this interval
                         for (let i = endIdx; i > startIdx; i--) {
                             const color = getWeightColor(i);
-                            if (color) return color;
+                            if (color) {
+                                console.log(`Segment Color Found: ${color} at index ${i} for segment ${startIdx}-${endIdx}`);
+                                return color;
+                            }
                         }
 
                         // Fallback to p0 color if it's the start point of an event (though loop above covers p1)
@@ -650,6 +652,11 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
         if (minVal !== undefined && minVal < 0) minVal = 0;
 
+        // Ensure Y-axis max covers the Auxiliary Bars (weightYMax) + headroom for text
+        if (type === 'weight' && maxVal !== undefined && weightYMax) {
+            maxVal = Math.max(maxVal, weightYMax + 5); // Add extra 5 headroom for text
+        }
+
         const scales: any = {
             y: {
                 type: 'linear' as const,
@@ -685,7 +692,12 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             maintainAspectRatio: false, // Always false to respect container height
             interaction: { mode: 'index' as const, intersect: false },
             plugins: { legend: { position: 'top' as const } },
-            scales: scales
+            scales: scales,
+            layout: {
+                padding: {
+                    top: 20 // Add explicit padding to prevent clipping of text at top
+                }
+            }
         };
     };
 
