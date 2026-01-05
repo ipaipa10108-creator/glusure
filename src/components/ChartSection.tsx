@@ -39,6 +39,10 @@ interface ChartSectionProps {
     referenceDate?: Date;
     thresholds?: HealthThresholds;
     showThresholds?: boolean;
+    showAuxiliaryLines?: boolean;
+    auxiliaryLineMode?: 'y-axis' | 'x-axis';
+    auxiliaryColors?: AuxiliaryColors;
+    alertPointColor?: string; // 超過警示線的資料點顏色
     showExerciseDuration?: boolean; // New Prop
     onToggleThresholds?: () => void;
     onToggleAuxiliaryLines?: () => void;
