@@ -61,8 +61,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
 
     const filteredRecords = useMemo(() => {
         // Use provided referenceDate or default to now if not provided
-        // Construct 'now' to be the end of the day of the reference date if provided,
-        // otherwise just the current moment.
         let now: Date;
         if (referenceDate) {
             now = new Date(referenceDate);
@@ -83,15 +81,64 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             case 'all': default: startDate = new Date(0); break;
         }
 
-        return records
-            .filter(r => {
-                const recordDate = parseISO(r.timestamp);
-                // Filter records that are AFTER the start date AND BEFORE/EQUAL to the reference 'now' date
-                // However, the original logic only checked isAfter(startDate).
-                // If we are looking at the past, we must also exclude future records relative to that past date.
-                return isAfter(recordDate, startDate) && (referenceDate ? recordDate <= now : true);
-            })
+        // 1. Sort all records by time first to ensure finding the "latest preceding" is correct
+        const sortedAllParams = [...records].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+        // 2. Identify records that are strictly inside the range
+        const inRangeRecords = sortedAllParams.filter(r => {
+            const recordDate = parseISO(r.timestamp);
+            return isAfter(recordDate, startDate) && (referenceDate ? recordDate <= now : true);
+        });
+
+        // 3. Find preceding records for each metric to ensuring continuity at the left edge
+        // We need records <= startDate.
+        const candidates = sortedAllParams.filter(r => {
+            const recordDate = parseISO(r.timestamp);
+            return recordDate <= startDate;
+        });
+
+        const precedingRecords: HealthRecord[] = [];
+
+        // Helper to find the last record in candidates that has a valid value for a specific check
+        const findLastValid = (check: (r: HealthRecord) => boolean) => {
+            for (let i = candidates.length - 1; i >= 0; i--) {
+                if (check(candidates[i])) return candidates[i];
+            }
+            return null;
+        };
+
+        // Find preceding Weight
+        const lastWeight = findLastValid(r => (r.weight ?? 0) > 0);
+        if (lastWeight) precedingRecords.push(lastWeight);
+
+        // Find preceding BP (systolic/diastolic)
+        const lastBP = findLastValid(r => (r.systolic ?? 0) > 0 || (r.diastolic ?? 0) > 0);
+        if (lastBP) precedingRecords.push(lastBP);
+
+        // Find preceding Glucose
+        const lastGlucose = findLastValid(r =>
+            (r.glucoseFasting ?? 0) > 0 ||
+            (r.glucosePostMeal ?? 0) > 0 ||
+            (r.glucoseRandom ?? 0) > 0
+        );
+        if (lastGlucose) precedingRecords.push(lastGlucose);
+
+        // 4. Merge and Deduplicate (by id or timestamp)
+        const combined = [...precedingRecords, ...inRangeRecords];
+        const uniqueMap = new Map<string, HealthRecord>();
+
+        combined.forEach(r => {
+            // Use ID if available, otherwise timestamp as key
+            const key = r.id || r.timestamp;
+            if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, r);
+            }
+        });
+
+        // 5. Final Sort
+        return Array.from(uniqueMap.values())
             .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
     }, [records, currentTimeRange, referenceDate]);
 
     const labels = filteredRecords.map(r => format(parseISO(r.timestamp), 'MM/dd HH:mm'));
