@@ -115,6 +115,55 @@ function App() {
     const [pendingSaves, setPendingSaves] = useState(0);
     const [saveSuccess, setSaveSuccess] = useState(false);
 
+    // Swipe navigation logic with safety checks
+    const [touchStartX, setTouchStartX] = useState<number | null>(null);
+    const [touchStartY, setTouchStartY] = useState<number | null>(null);
+    const [touchEndX, setTouchEndX] = useState<number | null>(null);
+    const [touchEndY, setTouchEndY] = useState<number | null>(null);
+    const minSwipeDistance = 70; // 稍微增加閾值提高精準度
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchStartX(e.targetTouches[0].clientX);
+        setTouchStartY(e.targetTouches[0].clientY);
+        setTouchEndX(null);
+        setTouchEndY(null);
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        setTouchEndX(e.targetTouches[0].clientX);
+        setTouchEndY(e.targetTouches[0].clientY);
+    };
+
+    const onTouchEnd = () => {
+        if (touchStartX === null || touchEndX === null || touchStartY === null || touchEndY === null) return;
+        if (!user?.enableSwipeNav) return;
+
+        const distanceX = touchStartX - touchEndX;
+        const distanceY = touchStartY - touchEndY;
+
+        // 確保水平滑動明顯大於垂直滑動（避免切換時也在捲動頁面）
+        // 且位移大於閾值
+        const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY) * 1.5;
+
+        if (isHorizontalSwipe) {
+            if (distanceX > minSwipeDistance) {
+                // Swipe Left: Next View
+                if (viewMode === 'dashboard') setViewMode('list');
+                else if (viewMode === 'list') setViewMode('physician');
+            } else if (distanceX < -minSwipeDistance) {
+                // Swipe Right: Prev View
+                if (viewMode === 'physician') setViewMode('list');
+                else if (viewMode === 'list') setViewMode('dashboard');
+            }
+        }
+
+        // Reset
+        setTouchStartX(null);
+        setTouchStartY(null);
+        setTouchEndX(null);
+        setTouchEndY(null);
+    };
+
     const handleSubmitRecord = async (record: HealthRecord) => {
         // 1. Optimistic Update
         const optimisticRecord = {
@@ -200,6 +249,9 @@ function App() {
     return (
         <div
             className="min-h-screen"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
         >
             <Layout
                 userName={user.name}
