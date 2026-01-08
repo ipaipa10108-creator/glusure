@@ -17,6 +17,7 @@ import {
 import { Line, getElementAtEvent } from 'react-chartjs-2';
 import { format, subDays, subMonths, subYears, parseISO, isAfter } from 'date-fns';
 import { Maximize2, X } from 'lucide-react';
+import clsx from 'clsx';
 
 ChartJS.register(
     CategoryScale,
@@ -679,11 +680,6 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         { value: 'all', label: '全部' },
     ];
 
-    const chartTitles: Record<ChartType, string> = {
-        weight: '體重趨勢',
-        bp: '血壓變化',
-        glucose: '血糖紀錄',
-    };
 
     const getChartData = (type: ChartType) => {
         switch (type) {
@@ -739,7 +735,26 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                 <div className="fixed inset-0 z-[100] bg-white flex flex-col">
                     <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-b border-gray-200 gap-4">
                         <div className="flex items-center justify-between w-full sm:w-auto">
-                            <h2 className="text-lg font-bold text-gray-800">{chartTitles[fullscreenChart]}</h2>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {[
+                                    { type: 'weight' as ChartType, label: '體重趨勢' },
+                                    { type: 'bp' as ChartType, label: '血壓變化' },
+                                    { type: 'glucose' as ChartType, label: '血糖紀錄' }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.type}
+                                        onClick={() => setFullscreenChart(tab.type)}
+                                        className={clsx(
+                                            "px-3 py-1.5 text-sm font-bold rounded-full transition-all whitespace-nowrap",
+                                            fullscreenChart === tab.type
+                                                ? "bg-teal-600 text-white shadow-md"
+                                                : "bg-teal-50 text-teal-700 hover:bg-teal-100"
+                                        )}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
                             <button onClick={() => setFullscreenChart(null)} className="p-2 hover:bg-gray-100 rounded-full sm:hidden">
                                 <X className="h-6 w-6" />
                             </button>

@@ -240,21 +240,23 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto justify-end">
-                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full no-scrollbar items-center">
-                        {ranges.map((range) => (
-                            <button
-                                key={range.value}
-                                onClick={() => onTimeRangeChange(range.value)}
-                                className={`px-2 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
-                                    ? 'bg-white text-teal-600 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-900'
-                                    }`}
-                            >
-                                {range.label}
-                            </button>
-                        ))}
-                        <div className="h-4 w-px bg-gray-300 mx-2" />
-                        <div className="flex items-center px-1">
+                    <div className="flex flex-wrap sm:flex-nowrap bg-gray-100 p-1 rounded-lg items-center justify-center gap-y-2">
+                        <div className="flex overflow-x-auto max-w-full no-scrollbar items-center">
+                            {ranges.map((range) => (
+                                <button
+                                    key={range.value}
+                                    onClick={() => onTimeRangeChange(range.value)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
+                                        ? 'bg-white text-teal-600 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                        }`}
+                                >
+                                    {range.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="hidden sm:block h-4 w-px bg-gray-300 mx-2" />
+                        <div className="flex items-center px-2 w-full sm:w-auto justify-center">
                             <span className="text-xs text-gray-500 mr-1 whitespace-nowrap">基準日:</span>
                             <input
                                 type="date"

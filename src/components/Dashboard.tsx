@@ -112,7 +112,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex flex-col xl:flex-row items-center gap-4">
                 {/* Left Side: Time Range & Reference Date */}
                 <div className="flex-1 w-full xl:w-auto flex justify-center xl:justify-start">
-                    <div className="flex flex-wrap sm:flex-nowrap bg-gray-100 p-1 rounded-lg items-center justify-center gap-y-2">
+                    <div className="flex bg-gray-100 p-1 rounded-lg items-center justify-center">
                         <div className="flex overflow-x-auto max-w-full no-scrollbar items-center">
                             {ranges.map((range) => (
                                 <button
@@ -126,24 +126,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                     {range.label}
                                 </button>
                             ))}
-                        </div>
-                        <div className="hidden sm:block h-4 w-px bg-gray-300 mx-2" />
-                        <div className="flex items-center px-2 w-full sm:w-auto justify-center">
-                            <span className="text-sm text-gray-500 mr-2 whitespace-nowrap">基準日:</span>
-                            <input
-                                type="date"
-                                value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
-                                onChange={handleDateChange}
-                                className="text-sm border-gray-300 rounded-md shadow-sm focus:border-teal-500 focus:ring-teal-500 w-auto max-w-[130px]"
-                            />
-                            {referenceDate && (
-                                <button
-                                    onClick={resetDate}
-                                    className="ml-2 text-xs text-teal-600 hover:text-teal-800 underline whitespace-nowrap"
-                                >
-                                    回今天
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -165,7 +147,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         💪 運動
                     </button>
 
-                    <div className="flex items-center gap-2 ml-2">
+                    <div className="flex items-center gap-2 ml-2 flex-wrap justify-center">
                         <button
                             onClick={handleToggleThresholds}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${showThresholds ? 'bg-white border-teal-200 shadow-sm' : 'bg-gray-50 border-gray-200 opacity-75'}`}
@@ -182,6 +164,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             <div className={`w-2.5 h-2.5 rounded-full transition-colors shadow-sm ${showAuxiliaryLines ? 'bg-green-500 shadow-green-400/50' : 'bg-gray-300'}`} />
                             <span className="text-sm text-gray-600 font-medium">輔助線</span>
                         </button>
+
+                        <div className="flex items-center px-4 bg-gray-50 rounded-full border border-gray-200 py-1 shadow-inner h-[38px]">
+                            <span className="text-xs text-gray-500 mr-2 whitespace-nowrap">基準日:</span>
+                            <input
+                                type="date"
+                                value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
+                                onChange={handleDateChange}
+                                className="text-sm border-transparent bg-transparent focus:border-transparent focus:ring-0 p-0 text-gray-700 w-[110px]"
+                            />
+                            {referenceDate && (
+                                <button
+                                    onClick={resetDate}
+                                    className="ml-2 text-xs text-teal-600 hover:text-teal-800 underline whitespace-nowrap px-1"
+                                >
+                                    回今天
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 

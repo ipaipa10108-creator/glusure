@@ -130,7 +130,7 @@ function App() {
     };
 
     const onTouchEnd = () => {
-        if (!touchStart || !touchEnd) return;
+        if (touchStart === null || touchEnd === null) return;
         if (!user?.enableSwipeNav) return;
 
         const distance = touchStart - touchEnd;
@@ -147,6 +147,10 @@ function App() {
             if (viewMode === 'physician') setViewMode('list');
             else if (viewMode === 'list') setViewMode('dashboard');
         }
+
+        // 務必重置狀態，防止干擾後續動作
+        setTouchStart(null);
+        setTouchEnd(null);
     };
 
     const handleSubmitRecord = async (record: HealthRecord) => {

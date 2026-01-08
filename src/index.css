@@ -7,7 +7,10 @@
   html,
   body {
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -39,15 +42,13 @@
   }
 }
 
-/* 防止觸控設備產生 hover 副作用導致的雙擊問題 */
+/* 基礎點擊回饋：針對非按鈕可點擊元素增加輕微回饋，有助於確認 iOS 點擊成功 */
 @media (hover: none) {
-  .hover\:bg-teal-700:hover {
-    background-color: unset;
-  }
 
-  .hover\:bg-gray-100:hover {
-    background-color: unset;
+  .cursor-pointer:active,
+  button:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+    transition: transform 0.1s;
   }
-
-  /* 可以根據需要添加更多，或者依賴 tailwind.config.js 的 hoverOnlyWhenSupported */
 }
