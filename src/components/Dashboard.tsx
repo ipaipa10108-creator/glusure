@@ -15,6 +15,10 @@ interface DashboardProps {
     onUpdateSettings: (settings: Partial<UserSettings>) => Promise<void>;
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
+    timeRange: TimeRange;
+    onTimeRangeChange: (range: TimeRange) => void;
+    referenceDate: Date | null;
+    onReferenceDateChange: (date: Date | null) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -25,9 +29,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onSaveRecord,
     onUpdateSettings,
     auxiliaryLineMode,
-    auxiliaryColors
+    auxiliaryColors,
+    timeRange,
+    onTimeRangeChange,
+    referenceDate,
+    onReferenceDateChange
 }) => {
-    const [timeRange, setTimeRange] = useState<TimeRange>('month');
     const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
 
     // Check for alerts
@@ -39,17 +46,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
         (thresholds.weightLow > 0 && latestRecord.weight < thresholds.weightLow && latestRecord.weight > 0)
     );
 
-    const [referenceDate, setReferenceDate] = useState<Date | null>(null);
-
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.value) {
-            setReferenceDate(new Date(e.target.value));
+            onReferenceDateChange(new Date(e.target.value));
         } else {
-            setReferenceDate(null);
+            onReferenceDateChange(null);
         }
     };
 
-    const resetDate = () => setReferenceDate(null);
+    const resetDate = () => onReferenceDateChange(null);
 
     const ranges: { value: TimeRange; label: string }[] = [
         { value: 'week', label: '一週' },
@@ -112,7 +117,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             {ranges.map((range) => (
                                 <button
                                     key={range.value}
-                                    onClick={() => setTimeRange(range.value)}
+                                    onClick={() => onTimeRangeChange(range.value)}
                                     className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
                                         ? 'bg-white text-teal-600 shadow-sm'
                                         : 'text-gray-500 hover:text-gray-900'

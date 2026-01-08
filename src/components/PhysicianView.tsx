@@ -11,13 +11,15 @@ import { DEFAULT_THRESHOLDS } from '../types';
 interface PhysicianViewProps {
     records: HealthRecord[];
     userSettings: UserSettings;
+    timeRange: TimeRange;
+    onTimeRangeChange: (range: TimeRange) => void;
+    referenceDate: Date | null;
+    onReferenceDateChange: (date: Date | null) => void;
 }
 
-export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSettings }) => {
+export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSettings, timeRange, onTimeRangeChange, referenceDate, onReferenceDateChange }) => {
     const thresholds = userSettings.thresholds || DEFAULT_THRESHOLDS;
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
-    const [timeRange, setTimeRange] = useState<TimeRange>('week');
-    const [referenceDate, setReferenceDate] = useState<Date | null>(null);
 
     const groupedRecords = useMemo(() => {
         const now = referenceDate ? new Date(new Date(referenceDate).setHours(23, 59, 59, 999)) : new Date();
@@ -217,13 +219,13 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.value) {
-            setReferenceDate(new Date(e.target.value));
+            onReferenceDateChange(new Date(e.target.value));
         } else {
-            setReferenceDate(null);
+            onReferenceDateChange(null);
         }
     };
 
-    const resetDate = () => setReferenceDate(null);
+    const resetDate = () => onReferenceDateChange(null);
 
     return (
         <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -241,7 +243,7 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
                         {ranges.map((range) => (
                             <button
                                 key={range.value}
-                                onClick={() => setTimeRange(range.value)}
+                                onClick={() => onTimeRangeChange(range.value)}
                                 className={`px-2 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
                                     ? 'bg-white text-teal-600 shadow-sm'
                                     : 'text-gray-500 hover:text-gray-900'

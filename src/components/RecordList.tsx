@@ -9,11 +9,13 @@ interface RecordListProps {
     onEdit: (record: HealthRecord) => void;
     onDelete: (id: string) => void;
     thresholds?: HealthThresholds;
+    timeRange: TimeRange;
+    onTimeRangeChange: (range: TimeRange) => void;
+    referenceDate: Date | null;
+    onReferenceDateChange: (date: Date | null) => void;
 }
 
-export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelete, thresholds = DEFAULT_THRESHOLDS }) => {
-    const [timeRange, setTimeRange] = useState<TimeRange>('month');
-    const [referenceDate, setReferenceDate] = useState<Date | null>(null);
+export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelete, thresholds = DEFAULT_THRESHOLDS, timeRange, onTimeRangeChange, referenceDate, onReferenceDateChange }) => {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [selectedNoteRecord, setSelectedNoteRecord] = useState<HealthRecord | null>(null);
 
@@ -58,13 +60,13 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.value) {
-            setReferenceDate(new Date(e.target.value));
+            onReferenceDateChange(new Date(e.target.value));
         } else {
-            setReferenceDate(null);
+            onReferenceDateChange(null);
         }
     };
 
-    const resetDate = () => setReferenceDate(null);
+    const resetDate = () => onReferenceDateChange(null);
 
     const ranges: { value: TimeRange; label: string }[] = [
         { value: 'month', label: '近一月' },
@@ -120,7 +122,7 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
                         {ranges.map((range) => (
                             <button
                                 key={range.value}
-                                onClick={() => setTimeRange(range.value)}
+                                onClick={() => onTimeRangeChange(range.value)}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${timeRange === range.value
                                     ? 'bg-white text-teal-600 shadow-sm'
                                     : 'text-gray-500 hover:text-gray-900'

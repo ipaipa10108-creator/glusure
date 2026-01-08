@@ -64,6 +64,7 @@ export interface UserSettings {
     auxiliaryLineMode?: 'y-axis' | 'x-axis';
     auxiliaryColors?: AuxiliaryColors;
     alertPointColor?: string; // 超過警示線的資料點顏色
+    defaultTimeRange?: TimeRange;
 }
 
 // Auxiliary Line Color Settings

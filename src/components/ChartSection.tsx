@@ -737,11 +737,16 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
             {/* Fullscreen Modal */}
             {fullscreenChart && (
                 <div className="fixed inset-0 z-[100] bg-white flex flex-col">
-                    <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                        <h2 className="text-lg font-bold text-gray-800">{chartTitles[fullscreenChart]}</h2>
-                        <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-b border-gray-200 gap-4">
+                        <div className="flex items-center justify-between w-full sm:w-auto">
+                            <h2 className="text-lg font-bold text-gray-800">{chartTitles[fullscreenChart]}</h2>
+                            <button onClick={() => setFullscreenChart(null)} className="p-2 hover:bg-gray-100 rounded-full sm:hidden">
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 justify-center sm:justify-end w-full sm:w-auto">
                             {/* Toggles for Fullscreen */}
-                            <div className="flex items-center gap-2 mr-2">
+                            <div className="flex items-center gap-2">
                                 {onToggleThresholds && (
                                     <button
                                         onClick={onToggleThresholds}
@@ -775,7 +780,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                                     </button>
                                 ))}
                             </div>
-                            <button onClick={() => setFullscreenChart(null)} className="p-2 hover:bg-gray-100 rounded-full">
+                            <button onClick={() => setFullscreenChart(null)} className="hidden sm:block p-2 hover:bg-gray-100 rounded-full">
                                 <X className="h-6 w-6" />
                             </button>
                         </div>

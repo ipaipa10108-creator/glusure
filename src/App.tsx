@@ -6,7 +6,7 @@ import { PhysicianView } from './components/PhysicianView';
 import { SettingsView, HelpModal } from './components/SettingsView';
 import { RecordList } from './components/RecordList';
 import { RecordForm } from './components/RecordForm';
-import { HealthRecord, UserSettings } from './types';
+import { HealthRecord, UserSettings, TimeRange } from './types';
 import { getRecords, saveRecord, updateRecord, deleteRecord } from './utils/api';
 import { Activity, Edit3, Stethoscope } from 'lucide-react';
 
@@ -20,6 +20,10 @@ function App() {
     const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
     const [isAppLoading, setIsAppLoading] = useState(true);
     const [showHelpModal, setShowHelpModal] = useState(false);
+
+    // Global filters for synchronization
+    const [timeRange, setTimeRange] = useState<TimeRange>('week');
+    const [referenceDate, setReferenceDate] = useState<Date | null>(null);
 
     // Initial Login Check
     useEffect(() => {
@@ -41,6 +45,14 @@ function App() {
     useEffect(() => {
         if (user) {
             loadData(user.name);
+            // Apply default time range if set
+            if (user.defaultTimeRange) {
+                setTimeRange(user.defaultTimeRange);
+            }
+        } else {
+            // Reset filters on logout
+            setTimeRange('week');
+            setReferenceDate(null);
         }
     }, [user]);
 
@@ -277,6 +289,10 @@ function App() {
                             onUpdateSettings={handleUpdateSettings}
                             auxiliaryLineMode={user.auxiliaryLineMode}
                             auxiliaryColors={user.auxiliaryColors}
+                            timeRange={timeRange}
+                            onTimeRangeChange={setTimeRange}
+                            referenceDate={referenceDate}
+                            onReferenceDateChange={setReferenceDate}
                         />
                     )}
 
@@ -286,11 +302,22 @@ function App() {
                             onEdit={handleEditRecord}
                             onDelete={handleDeleteRecord}
                             thresholds={user.thresholds}
+                            timeRange={timeRange}
+                            onTimeRangeChange={setTimeRange}
+                            referenceDate={referenceDate}
+                            onReferenceDateChange={setReferenceDate}
                         />
                     )}
 
                     {viewMode === 'physician' && (
-                        <PhysicianView records={records} userSettings={user} />
+                        <PhysicianView
+                            records={records}
+                            userSettings={user}
+                            timeRange={timeRange}
+                            onTimeRangeChange={setTimeRange}
+                            referenceDate={referenceDate}
+                            onReferenceDateChange={setReferenceDate}
+                        />
                     )}
 
                     {viewMode === 'settings' && (

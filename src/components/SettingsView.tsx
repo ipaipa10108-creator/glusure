@@ -183,6 +183,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                                 />
                             </label>
 
+                            {/* Default Time Range Setting */}
+                            <div className="p-3 border border-gray-200 rounded-lg bg-gray-50 sm:col-span-2">
+                                <span className="text-sm text-gray-700 block mb-2">進入程式時預設時間視角</span>
+                                <div className="flex gap-4">
+                                    {(['week', '2week', 'month'] as const).map((range) => (
+                                        <label key={range} className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="defaultTimeRange"
+                                                className="text-teal-600 focus:ring-teal-500"
+                                                checked={(user.defaultTimeRange || 'week') === range}
+                                                onChange={() => onUpdate({ ...user, defaultTimeRange: range })}
+                                            />
+                                            <span className="text-sm text-gray-600">
+                                                {range === 'week' ? '一週' : range === '2week' ? '雙週' : '一個月'}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
                             {/* Auxiliary Line Color Customization */}
                             {user.showAuxiliaryLines !== false && (
                                 <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 sm:col-span-2 space-y-4">
