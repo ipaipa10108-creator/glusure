@@ -115,44 +115,6 @@ function App() {
     const [pendingSaves, setPendingSaves] = useState(0);
     const [saveSuccess, setSaveSuccess] = useState(false);
 
-    // Swipe Navigation Logic
-    const [touchStart, setTouchStart] = useState<number | null>(null);
-    const [touchEnd, setTouchEnd] = useState<number | null>(null);
-    const minSwipeDistance = 50;
-
-    const onTouchStart = (e: React.TouchEvent) => {
-        setTouchEnd(null);
-        setTouchStart(e.targetTouches[0].clientX);
-    };
-
-    const onTouchMove = (e: React.TouchEvent) => {
-        setTouchEnd(e.targetTouches[0].clientX);
-    };
-
-    const onTouchEnd = () => {
-        if (touchStart === null || touchEnd === null) return;
-        if (!user?.enableSwipeNav) return;
-
-        const distance = touchStart - touchEnd;
-        const isLeftSwipe = distance > minSwipeDistance;
-        const isRightSwipe = distance < -minSwipeDistance;
-
-        // 如果距離足夠大才進行切換
-        if (isLeftSwipe) {
-            // Swipe Left: Next View (Dashboard -> List -> Physician)
-            if (viewMode === 'dashboard') setViewMode('list');
-            else if (viewMode === 'list') setViewMode('physician');
-        } else if (isRightSwipe) {
-            // Swipe Right: Prev View (Physician -> List -> Dashboard)
-            if (viewMode === 'physician') setViewMode('list');
-            else if (viewMode === 'list') setViewMode('dashboard');
-        }
-
-        // 務必重置狀態，防止干擾後續動作
-        setTouchStart(null);
-        setTouchEnd(null);
-    };
-
     const handleSubmitRecord = async (record: HealthRecord) => {
         // 1. Optimistic Update
         const optimisticRecord = {
@@ -237,9 +199,6 @@ function App() {
 
     return (
         <div
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
             className="min-h-screen"
         >
             <Layout

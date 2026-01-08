@@ -46,11 +46,13 @@ interface ChartSectionProps {
     alertPointColor?: string; // 超過警示線的資料點顏色
     onToggleThresholds?: () => void;
     onToggleAuxiliaryLines?: () => void;
+    onTimeRangeChange: (range: TimeRange) => void;
+    onReferenceDateChange: (date: Date | null) => void;
 }
 
 type ChartType = 'weight' | 'bp' | 'glucose';
 
-export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor, onToggleThresholds, onToggleAuxiliaryLines }) => {
+export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: globalTimeRange, onDataClick, referenceDate, thresholds, showThresholds = true, showAuxiliaryLines = true, auxiliaryLineMode = 'y-axis', auxiliaryColors, alertPointColor, onToggleThresholds, onToggleAuxiliaryLines, onTimeRangeChange, onReferenceDateChange }) => {
     const chartRefWeight = useRef<any>(null);
     const chartRefBP = useRef<any>(null);
     const chartRefGlucose = useRef<any>(null);
@@ -704,6 +706,19 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
         </button>
     );
 
+    const handleFsTimeRangeChange = (range: TimeRange) => {
+        setFsTimeRange(range);
+        onTimeRangeChange(range); // 同步回全域，確保關閉後外部一致
+    };
+
+    const handleFsDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value) {
+            onReferenceDateChange(new Date(e.target.value));
+        } else {
+            onReferenceDateChange(null);
+        }
+    };
+
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -785,7 +800,7 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                                 {ranges.map((range) => (
                                     <button
                                         key={range.value}
-                                        onClick={() => setFsTimeRange(range.value)}
+                                        onClick={() => handleFsTimeRangeChange(range.value)}
                                         className={`px-2 py-1 text-xs font-medium rounded-md whitespace-nowrap transition-all ${fsTimeRange === range.value
                                             ? 'bg-white text-teal-600 shadow-sm'
                                             : 'text-gray-500 hover:text-gray-900'
@@ -795,6 +810,25 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
                                     </button>
                                 ))}
                             </div>
+
+                            <div className="flex items-center px-3 bg-gray-50 rounded-full border border-gray-200 py-1 h-[32px]">
+                                <span className="text-[10px] text-gray-500 mr-1 whitespace-nowrap">基準日:</span>
+                                <input
+                                    type="date"
+                                    value={referenceDate ? referenceDate.toISOString().split('T')[0] : ''}
+                                    onChange={handleFsDateChange}
+                                    className="text-xs border-transparent bg-transparent focus:border-transparent focus:ring-0 p-0 text-gray-700 w-[95px]"
+                                />
+                                {referenceDate && (
+                                    <button
+                                        onClick={() => onReferenceDateChange(null)}
+                                        className="ml-1 text-[10px] text-teal-600 hover:text-teal-800 underline whitespace-nowrap"
+                                    >
+                                        回今天
+                                    </button>
+                                )}
+                            </div>
+
                             <button onClick={() => setFullscreenChart(null)} className="hidden sm:block p-2 hover:bg-gray-100 rounded-full">
                                 <X className="h-6 w-6" />
                             </button>
