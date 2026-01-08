@@ -39,6 +39,8 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
         let startDate: Date;
 
         switch (timeRange) {
+            case 'week': startDate = subMonths(now, 0); startDate.setDate(now.getDate() - 7); break;
+            case '2week': startDate = subMonths(now, 0); startDate.setDate(now.getDate() - 14); break;
             case 'month': startDate = subMonths(now, 1); break;
             case 'quarter': startDate = subMonths(now, 3); break;
             case 'halfYear': startDate = subMonths(now, 6); break;
@@ -69,7 +71,9 @@ export const RecordList: React.FC<RecordListProps> = ({ records, onEdit, onDelet
     const resetDate = () => onReferenceDateChange(null);
 
     const ranges: { value: TimeRange; label: string }[] = [
-        { value: 'month', label: '近一月' },
+        { value: 'week', label: '一週' },
+        { value: '2week', label: '雙週' },
+        { value: 'month', label: '一月' },
         { value: 'quarter', label: '一季' },
         { value: 'halfYear', label: '半年' },
         { value: 'year', label: '一年' },

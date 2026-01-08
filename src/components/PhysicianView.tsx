@@ -166,8 +166,9 @@ export const PhysicianView: React.FC<PhysicianViewProps> = ({ records, userSetti
     };
 
     const ranges: { value: TimeRange; label: string }[] = [
-        { value: '2week', label: '近雙週' },
-        { value: 'month', label: '近一月' },
+        { value: 'week', label: '一週' },
+        { value: '2week', label: '雙週' },
+        { value: 'month', label: '一月' },
         { value: 'quarter', label: '一季' },
         { value: 'halfYear', label: '半年' },
         { value: 'year', label: '一年' },

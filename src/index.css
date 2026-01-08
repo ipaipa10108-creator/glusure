@@ -2,14 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+
+  html,
+  body {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 @layer utilities {
   @keyframes fadeOutUp {
-    0% { opacity: 1; transform: translateY(0) scale(0.95); }
-    10% { opacity: 1; transform: translateY(0) scale(1); }
-    70% { opacity: 1; transform: translateY(-10px); }
-    100% { opacity: 0; transform: translateY(-30px); }
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(0.95);
+    }
+
+    10% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    70% {
+      opacity: 1;
+      transform: translateY(-10px);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
   }
+
   .animate-fade-out-up {
     animation: fadeOutUp 2.5s ease-in-out forwards;
   }
+}
+
+/* 防止觸控設備產生 hover 副作用導致的雙擊問題 */
+@media (hover: none) {
+  .hover\:bg-teal-700:hover {
+    background-color: unset;
+  }
+
+  .hover\:bg-gray-100:hover {
+    background-color: unset;
+  }
+
+  /* 可以根據需要添加更多，或者依賴 tailwind.config.js 的 hoverOnlyWhenSupported */
 }

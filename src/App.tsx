@@ -137,6 +137,7 @@ function App() {
         const isLeftSwipe = distance > minSwipeDistance;
         const isRightSwipe = distance < -minSwipeDistance;
 
+        // 如果距離足夠大才進行切換
         if (isLeftSwipe) {
             // Swipe Left: Next View (Dashboard -> List -> Physician)
             if (viewMode === 'dashboard') setViewMode('list');
