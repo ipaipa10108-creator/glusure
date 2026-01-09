@@ -722,21 +722,21 @@ export const ChartSection: React.FC<ChartSectionProps> = ({ records, timeRange: 
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition h-80">
+                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 transition h-80">
                     <ExpandButton type="weight" />
                     <h4 className="text-md font-medium text-gray-700 mb-2">體重趨勢 (點擊數值編輯)</h4>
                     <div className="flex-1 w-full h-[calc(100%-2rem)]">
                         <Line ref={chartRefWeight} data={weightData} options={createOptions('weight')} {...bindClick(chartRefWeight)} />
                     </div>
                 </div>
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-teal-200 transition h-80">
+                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 transition h-80">
                     <ExpandButton type="bp" />
                     <h4 className="text-md font-medium text-gray-700 mb-2">血壓變化 (點擊數值編輯)</h4>
                     <div className="flex-1 w-full h-[calc(100%-2rem)]">
                         <Line ref={chartRefBP} data={bpData} options={createOptions('bp')} plugins={[pulsePressurePlugin]} {...bindClick(chartRefBP)} />
                     </div>
                 </div>
-                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 cursor-pointer hover:border-teal-200 transition h-80">
+                <div className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2 transition h-80">
                     <ExpandButton type="glucose" />
                     <h4 className="text-md font-medium text-gray-700 mb-2">血糖紀錄 (點擊數值編輯)</h4>
                     <div className="flex-1 w-full h-[calc(100%-2rem)]">
