@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
@@ -115,6 +115,48 @@ function App() {
     const [pendingSaves, setPendingSaves] = useState(0);
     const [saveSuccess, setSaveSuccess] = useState(false);
 
+    // Optimized Swipe Navigation (using useRef to avoid re-renders)
+    const touchStartRef = useRef<{ x: number, y: number } | null>(null);
+    const minSwipeDistance = 70;
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        // Only track single touch to avoid multi-touch gestures
+        if (e.targetTouches.length === 1) {
+            touchStartRef.current = {
+                x: e.targetTouches[0].clientX,
+                y: e.targetTouches[0].clientY
+            };
+        }
+    };
+
+    const onTouchEnd = (e: React.TouchEvent) => {
+        if (!touchStartRef.current || !user?.enableSwipeNav) return;
+
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+
+        const distanceX = touchStartRef.current.x - touchEndX;
+        const distanceY = touchStartRef.current.y - touchEndY;
+
+        // Reset
+        touchStartRef.current = null;
+
+        // Check if horizontal swipe dominates vertical scroll
+        const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY) * 1.5;
+
+        if (isHorizontalSwipe) {
+            if (distanceX > minSwipeDistance) {
+                // Swipe Left: Next View
+                if (viewMode === 'dashboard') setViewMode('list');
+                else if (viewMode === 'list') setViewMode('physician');
+            } else if (distanceX < -minSwipeDistance) {
+                // Swipe Right: Prev View
+                if (viewMode === 'physician') setViewMode('list');
+                else if (viewMode === 'list') setViewMode('dashboard');
+            }
+        }
+    };
+
 
 
     const handleSubmitRecord = async (record: HealthRecord) => {
@@ -202,6 +244,8 @@ function App() {
     return (
         <div
             className="min-h-screen"
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
         >
             <Layout
                 userName={user.name}
