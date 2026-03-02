@@ -7,17 +7,24 @@ export const isWeightAbnormal = (current: HealthRecord, history: HealthRecord[],
     if (thresholds.weightLow > 0 && current.weight < thresholds.weightLow && current.weight > 0) return true;
 
     // Daily fluctuate check
+    // 找出 24 小時內的所有紀錄 (包含自己)
     const currentTime = parseISO(current.timestamp);
-    const recentRecord = history.find(r => {
+    const recentRecords = history.filter(r => {
+        if (r.weight <= 0) return false; // 排除沒有體重數值的紀錄
         const rTime = parseISO(r.timestamp);
         const diff = Math.abs(differenceInHours(currentTime, rTime));
-        return diff <= 24 && r.id !== current.id;
+        return diff <= 24;
     });
 
-    if (recentRecord && current.weight > 0 && recentRecord.weight > 0) {
-        const weightDiff = Math.abs(current.weight - recentRecord.weight);
-        return weightDiff >= 2;
+    if (recentRecords.length >= 2) {
+        const weights = recentRecords.map(r => r.weight);
+        const maxWeight = Math.max(...weights);
+        const minWeight = Math.min(...weights);
+        if ((maxWeight - minWeight) >= 2) {
+            return true;
+        }
     }
+
     return false;
 };
 
