@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { HealthRecord, TimeRange, UserSettings, AuxiliaryColors } from '../types';
 import { ChartSection } from './ChartSection';
-import { isWeightAbnormal } from '../utils/helpers';
+import { hasRecentWeightFluctuation } from '../utils/helpers';
 import { DEFAULT_THRESHOLDS } from '../types';
 import { AlertCircle } from 'lucide-react';
 import { ExerciseModal } from './ExerciseModal';
@@ -40,11 +40,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
     // Check for alerts
     const thresholds = userSettings?.thresholds || DEFAULT_THRESHOLDS;
     const latestRecord = records[records.length - 1];
-    const hasWeightAlert = latestRecord && (
-        isWeightAbnormal(latestRecord, records, thresholds) ||
-        (thresholds.weightHigh > 0 && latestRecord.weight > thresholds.weightHigh) ||
-        (thresholds.weightLow > 0 && latestRecord.weight < thresholds.weightLow && latestRecord.weight > 0)
-    );
+
+    // Gather specific alert messages instead of a single boolean
+    const alertMessages: string[] = [];
+    if (latestRecord && latestRecord.weight > 0) {
+        if (thresholds.weightHigh > 0 && latestRecord.weight > thresholds.weightHigh) {
+            alertMessages.push(`目前體重 (${latestRecord.weight}kg) 已超過您設定的高標 (${thresholds.weightHigh}kg)。`);
+        }
+        if (thresholds.weightLow > 0 && latestRecord.weight < thresholds.weightLow) {
+            alertMessages.push(`目前體重 (${latestRecord.weight}kg) 已低於您設定的低標 (${thresholds.weightLow}kg)。`);
+        }
+
+        if (hasRecentWeightFluctuation(latestRecord, records)) {
+            alertMessages.push('最近 24 小時內體重變化超過 2 公斤，請多加留意身體情況。');
+        }
+    }
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.value) {
@@ -93,16 +103,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="space-y-6 relative">
 
             {/* Alert Section */}
-            {hasWeightAlert && (
+            {alertMessages.length > 0 && (
                 <div className="bg-red-50 border-l-4 border-red-500 p-4">
                     <div className="flex">
                         <div className="flex-shrink-0">
                             <AlertCircle className="h-5 w-5 text-red-500" />
                         </div>
                         <div className="ml-3">
-                            <p className="text-sm text-red-700">
-                                <span className="font-bold">注意：</span> 最近 24 小時內體重變化超過 2 公斤，或超出設定範圍，請多加留意身體狀況。
-                            </p>
+                            <ul className="text-sm text-red-700 list-disc list-inside">
+                                {alertMessages.map((msg, idx) => (
+                                    <li key={idx}><span className="font-bold">注意：</span> {msg}</li>
+                                ))}
+                            </ul>
                         </div>
                     </div>
                 </div>

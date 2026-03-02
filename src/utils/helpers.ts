@@ -1,11 +1,7 @@
 import { HealthRecord, HealthThresholds, DEFAULT_THRESHOLDS } from '../types';
 import { differenceInHours, parseISO } from 'date-fns';
 
-export const isWeightAbnormal = (current: HealthRecord, history: HealthRecord[], thresholds: HealthThresholds = DEFAULT_THRESHOLDS): boolean => {
-    // Check target thresholds first
-    if (thresholds.weightHigh > 0 && current.weight > thresholds.weightHigh) return true;
-    if (thresholds.weightLow > 0 && current.weight < thresholds.weightLow && current.weight > 0) return true;
-
+export const hasRecentWeightFluctuation = (current: HealthRecord, history: HealthRecord[]): boolean => {
     // Daily fluctuate check
     // 找出在 current 發生之前的 24 小時內的所有體重紀錄
     const currentTime = parseISO(current.timestamp);
