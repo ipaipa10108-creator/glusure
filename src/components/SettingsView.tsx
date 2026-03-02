@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { UserSettings, DEFAULT_THRESHOLDS, DEFAULT_AUXILIARY_COLORS, AuxiliaryColors, DEFAULT_ALERT_POINT_COLOR } from '../types';
-import { updateUserSettings, migrateDataToTurso } from '../utils/api';
-import { isTursoConfigured } from '../utils/tursoApi';
-import { Save, Lock, ChevronLeft, Mail, X, Database } from 'lucide-react';
+import { updateUserSettings } from '../utils/api';
+import { Save, Lock, ChevronLeft, Mail, X } from 'lucide-react';
 
 // Helper: Convert rgba to hex (for color input)
 const rgbaToHex = (rgba: string): string => {
@@ -34,17 +33,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
     const [thresholds, setThresholds] = useState(user.thresholds || DEFAULT_THRESHOLDS);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
-    const [migrating, setMigrating] = useState(false);
-    const [migrationMsg, setMigrationMsg] = useState('');
-
-    const handleMigrate = async () => {
-        if (!confirm('確定要從 Google Sheets 轉移所有資料到 Turso 嗎？如果 Turso 已有舊的同ID資料，將會被覆蓋。')) return;
-        setMigrating(true);
-        setMigrationMsg('資料取得與寫入中...這可能會需要幾秒鐘');
-        const res = await migrateDataToTurso(user.name);
-        setMigrationMsg(res.message);
-        setMigrating(false);
-    };
 
     // Helper: Get current aux colors with defaults
     const getAuxColors = (): AuxiliaryColors => ({
@@ -483,32 +471,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                             </div>
                         </div>
                     </section >
-
-                    {/* Turso Migration Section */}
-                    {isTursoConfigured && (
-                        <section className="space-y-4 pt-4 border-t border-gray-100">
-                            <h4 className="font-medium text-gray-700 flex items-center">
-                                <span className="w-1.5 h-6 bg-indigo-500 rounded-full mr-2"></span>
-                                資料庫轉移方案 (Google Sheets → Turso)
-                            </h4>
-                            <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="text-sm text-gray-700">
-                                    <p className="flex items-center gap-1.5 mb-1"><Database className="w-4 h-4 text-indigo-600" /> 將此帳號的所有歷史紀錄從 Google Sheets 匯入到 Turso。</p>
-                                    <p className={`text-xs mt-1 font-medium ${migrationMsg.includes('成功') ? 'text-green-600' : 'text-indigo-600'}`}>
-                                        {migrationMsg || "請確保網路暢通，中途請勿關閉視窗。"}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleMigrate}
-                                    disabled={migrating}
-                                    className="px-4 py-2 bg-indigo-600 outline-none text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-300 text-sm whitespace-nowrap self-start sm:self-auto"
-                                >
-                                    {migrating ? '轉移中...' : '開始轉移'}
-                                </button>
-                            </div>
-                        </section>
-                    )}
 
                     <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-4">

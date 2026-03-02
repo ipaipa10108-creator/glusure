@@ -18,13 +18,6 @@ if (isTursoConfigured) {
     initTursoDb();
 }
 
-export const getRecords = async (): Promise<HealthRecord[]> => {
-    if (isTursoConfigured) {
-        return await getRecordsFromTurso();
-    }
-    return await fetchRecordsFromGoogleSheets();
-};
-
 export const fetchRecordsFromGoogleSheets = async (): Promise<HealthRecord[]> => {
     const parseOptionalNumber = (val: any) => {
         if (val === '' || val === null || val === undefined) return undefined;
@@ -72,6 +65,47 @@ export const fetchRecordsFromGoogleSheets = async (): Promise<HealthRecord[]> =>
     }
 };
 
+// 儲存狀態旗標，用來防止重複執行背景匯入
+let hasTriggeredBackgroundSync = false;
+
+export const getRecords = async (): Promise<HealthRecord[]> => {
+    if (isTursoConfigured) {
+        try {
+            const tursoRecords = await getRecordsFromTurso();
+
+            // Background Initialization Sync: 若 Turso 為空，且還沒觸發過同步，嘗試從 Google Sheets 補齊
+            if (tursoRecords.length === 0 && !hasTriggeredBackgroundSync && API_URL) {
+                hasTriggeredBackgroundSync = true;
+                console.log("Turso is empty. Triggering background sync from Google Sheets...");
+                // Fire and forget
+                fetchRecordsFromGoogleSheets().then(async (sheetsRecords) => {
+                    if (sheetsRecords.length > 0) {
+                        let count = 0;
+                        for (const record of sheetsRecords) {
+                            await saveRecordToTurso(record);
+                            count++;
+                        }
+                        console.log(`Background sync completed. Migrated ${count} records to Turso. Refresh app to see them if they haven't appeared.`);
+                    }
+                }).catch(e => console.error("Background sync failed:", e));
+            }
+
+            return tursoRecords;
+        } catch (e) {
+            console.error('Turso primary fetch failed, falling back to Google Sheets:', e);
+            // Fallback to Google Sheets
+        }
+    }
+
+    if (!API_URL) {
+        console.warn('VITE_API_URL is not defined, using localStorage fallback');
+        const data = localStorage.getItem('glusure_data');
+        return data ? JSON.parse(data) : [];
+    }
+
+    return await fetchRecordsFromGoogleSheets();
+};
+
 export const migrateDataToTurso = async (userName: string): Promise<{ success: boolean; message: string }> => {
     if (!isTursoConfigured) return { success: false, message: "尚未設定 Turso，請先在 .env 加入連線資訊" };
     if (!API_URL) return { success: false, message: "尚未設定 Google Sheets API 網址，無法取得舊資料" };
@@ -97,33 +131,41 @@ export const migrateDataToTurso = async (userName: string): Promise<{ success: b
 };
 
 export const saveRecord = async (record: HealthRecord): Promise<void> => {
+    // 1. 若配置了 Turso，先寫入 Turso（提供快速的 UX 回饋）
     if (isTursoConfigured) {
-        return await saveRecordToTurso(record);
+        try {
+            await saveRecordToTurso(record);
+        } catch (e) {
+            console.error('Turso save failed, will try Google Sheets as fallback:', e);
+            // 本次 Turso 寫入失敗，但會繼續往下寫入 Sheets 作為備援
+        }
     }
-    if (!API_URL) {
-        console.error('VITE_API_URL is not defined');
-        return;
+
+    // 2. 背景備援：將資料也寫入 Google Sheets (Fire-and-forget or await depending on fallback need)
+    // 為了保證一致性，我們對 Sheets 也是 await，但它的失敗不該阻止前端更新，若 Turso 成功的話。
+    if (API_URL) {
+        let payload: any = { action: 'save' };
+        const details: GlucoseReading[] = [];
+        if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
+        if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
+        if (record.glucoseRandom) details.push({ type: 'random', value: record.glucoseRandom, timestamp: record.timestamp });
+
+        payload.record = {
+            ...record,
+            id: record.id || Date.now().toString(),
+            heartRate: record.heartRate === undefined ? '' : record.heartRate,
+            details: JSON.stringify(details)
+        };
+
+        // If Turso is configured, make GAS call a background task to keep UI fast
+        if (isTursoConfigured) {
+            callGasApi(payload).catch(e => console.error('Background Sheets save failed:', e));
+        } else {
+            await callGasApi(payload);
+        }
+    } else if (!isTursoConfigured) {
+        console.error('Neither VITE_API_URL nor VITE_TURSO_DATABASE_URL is defined');
     }
-
-    // INDEPENDENT RECORD MODE: No merging. Always create new or update specific ID.
-    // If record has ID, it's an update. If not, it's a create.
-
-    let payload: any = { action: 'save' };
-
-    // Prepare details JSON for the single record
-    const details: GlucoseReading[] = [];
-    if (record.glucoseFasting) details.push({ type: 'fasting', value: record.glucoseFasting, timestamp: record.timestamp });
-    if (record.glucosePostMeal) details.push({ type: 'postMeal', value: record.glucosePostMeal, timestamp: record.timestamp });
-    if (record.glucoseRandom) details.push({ type: 'random', value: record.glucoseRandom, timestamp: record.timestamp });
-
-    payload.record = {
-        ...record,
-        id: record.id || Date.now().toString(),
-        heartRate: record.heartRate === undefined ? '' : record.heartRate, // Explicitly send empty string if undefined to prevent GAS from defaulting to 0
-        details: JSON.stringify(details)
-    };
-
-    await callGasApi(payload);
 };
 
 export const updateRecord = async (record: HealthRecord): Promise<void> => {
@@ -131,10 +173,23 @@ export const updateRecord = async (record: HealthRecord): Promise<void> => {
 };
 
 export const deleteRecord = async (id: string): Promise<void> => {
+    // 1. 若配置了 Turso，先刪除 Turso
     if (isTursoConfigured) {
-        return await deleteRecordFromTurso(id);
+        try {
+            await deleteRecordFromTurso(id);
+        } catch (e) {
+            console.error('Turso delete failed, falling back:', e);
+        }
     }
-    await callGasApi({ action: 'delete', id: String(id) });
+
+    // 2. 背景刪除 Google Sheets
+    if (API_URL) {
+        if (isTursoConfigured) {
+            callGasApi({ action: 'delete', id: String(id) }).catch(e => console.error('Background Sheets delete failed:', e));
+        } else {
+            await callGasApi({ action: 'delete', id: String(id) });
+        }
+    }
 };
 
 export const login = async (name: string, password?: string): Promise<UserSettings | null> => {

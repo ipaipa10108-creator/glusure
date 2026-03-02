@@ -231,11 +231,21 @@ function handleResponse(cb) {
    - 存取權限：所有人 (Anyone)
    - 複製產生的網址
 
-### 3. 本地環境設定
+### 3. 本地與雙資料庫備援 (Turso) 環境設定
 
-建立 `.env` 檔案：
+本系統支援「雙資料庫」自動切換容錯架構：
+- **Turso (SQLite Edge)** 作為主戰場，提供即時的讀寫回饋與極速查詢。
+- **Google Sheets** 降級為背景「異地備援庫」。
+
+建立 `.env` 檔案並填入連線資訊：
 ```bash
+# 必填：用於背景備援的 Google Sheets Apps Script URL
 VITE_API_URL=https://script.google.com/macros/s/您的部署ID/exec
+
+# (建議) 填寫 Turso 以獲得極速體驗。
+# 如果剛設定好，前端會自動在首次進入畫面時，將 Google Sheets 的舊資料複製到 Turso。
+VITE_TURSO_DATABASE_URL=libsql://your-db-name.turso.io
+VITE_TURSO_AUTH_TOKEN=your_token_here
 ```
 
 啟動專案：
