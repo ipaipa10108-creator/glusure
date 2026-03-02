@@ -56,18 +56,21 @@ function App() {
         }
     }, [user]);
 
-    const loadData = async (currentUserName?: string) => {
+    const loadData = async (currentUserName?: string, skipCache: boolean = false) => {
         const targetUser = currentUserName || user?.name;
         if (!targetUser) return;
 
-        // Try load from cache first for immediate display
         const cacheKey = `glusure_cache_${targetUser}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            try {
-                setRecords(JSON.parse(cached));
-            } catch (e) {
-                console.error('Failed to parse cache', e);
+
+        // Try load from cache first for immediate display (if not skipping)
+        if (!skipCache) {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    setRecords(JSON.parse(cached));
+                } catch (e) {
+                    console.error('Failed to parse cache', e);
+                }
             }
         }
 
@@ -190,7 +193,7 @@ function App() {
                     await saveRecord(record);
                 }
                 // 4. Background Sync
-                await loadData();
+                await loadData(undefined, true);
                 setSaveSuccess(true);
                 setTimeout(() => setSaveSuccess(false), 3000);
             } catch (error) {
@@ -214,8 +217,10 @@ function App() {
 
     const handleDeleteRecord = async (id: string) => {
         if (confirm('確定要刪除這筆紀錄嗎？')) {
+            // Optimistic deletion
+            setRecords(prev => prev.filter(r => r.id !== id));
             await deleteRecord(id);
-            await loadData();
+            await loadData(undefined, true);
         }
     };
 
