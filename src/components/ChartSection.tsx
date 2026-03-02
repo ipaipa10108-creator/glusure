@@ -13,6 +13,7 @@ import {
     Tooltip,
     Legend,
     TimeScale,
+    Filler
 } from 'chart.js';
 import { Line, getElementAtEvent } from 'react-chartjs-2';
 import { format, subDays, subMonths, subYears, parseISO, isAfter } from 'date-fns';
@@ -30,7 +31,8 @@ ChartJS.register(
     Title,
     Tooltip,
     Legend,
-    TimeScale
+    TimeScale,
+    Filler
 );
 
 interface ChartSectionProps {
