@@ -42,6 +42,7 @@ export const initTursoDb = async () => {
         console.log("Turso DB verified/initialized.");
     } catch (e) {
         console.error("Failed to initialize Turso DB:", e);
+        throw e;
     }
 };
 
@@ -65,9 +66,14 @@ export const getRecordsFromTurso = async (): Promise<HealthRecord[]> => {
             weather: row.weather ? (String(row.weather) as any) : undefined,
             noteContent: row.note_content ? String(row.note_content) : undefined,
         }));
-    } catch (e) {
+    } catch (e: any) {
         console.error("Failed to fetch records from Turso:", e);
-        return [];
+        // 如果是表格不存在導致的錯誤，嘗試先建表再回傳空陣列
+        if (e && e.message && String(e.message).includes("no such table")) {
+            console.log("Tables missing, attempting to initialize...");
+            await initTursoDb().catch(console.error);
+        }
+        throw e;
     }
 };
 
@@ -119,6 +125,7 @@ export const saveRecordToTurso = async (record: HealthRecord): Promise<void> => 
         });
     } catch (e) {
         console.error("Failed to save record to Turso:", e);
+        throw e;
     }
 };
 
@@ -131,6 +138,7 @@ export const deleteRecordFromTurso = async (id: string): Promise<void> => {
         });
     } catch (e) {
         console.error("Failed to delete record from Turso:", e);
+        throw e;
     }
 };
 
