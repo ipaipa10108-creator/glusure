@@ -33,10 +33,12 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # 如果需要將 env 寫入 build 過程，需在 GitHub Secrets 設定 VITE_API_URL
+          # 如果需要將 env 寫入 build 過程，需在 GitHub Secrets 設定環境變數
           # 這裡示範如何從 Secrets 讀取 (需使用者自行在 GitHub 設定)
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
+          VITE_TURSO_DATABASE_URL: ${{ secrets.VITE_TURSO_DATABASE_URL }}
+          VITE_TURSO_AUTH_TOKEN: ${{ secrets.VITE_TURSO_AUTH_TOKEN }}
+          
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
