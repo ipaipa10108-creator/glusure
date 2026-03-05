@@ -339,8 +339,8 @@ function App() {
                         <SettingsView
                             user={user}
                             onBack={() => setViewMode('dashboard')}
-                            onUpdate={(newSettings) => {
-                                setUser(newSettings);
+                            onUpdate={async (newSettings) => {
+                                setUser(prev => prev ? { ...prev, ...newSettings } as UserSettings : prev);
                                 // Update Local Storage to persist changes across reloads
                                 const savedUser = localStorage.getItem('glusure_user_full');
                                 if (savedUser) {

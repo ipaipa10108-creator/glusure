@@ -73,19 +73,28 @@ export const getRecords = async (): Promise<HealthRecord[]> => {
         try {
             const tursoRecords = await getRecordsFromTurso();
 
-            // Background Initialization Sync: 若 Turso 為空，且還沒觸發過同步，嘗試從 Google Sheets 補齊
-            if (tursoRecords.length === 0 && !hasTriggeredBackgroundSync && API_URL) {
+            // Background Initialization Sync: 若還沒觸發過同步，嘗試從 Google Sheets 補齊
+            if (!hasTriggeredBackgroundSync && API_URL) {
                 hasTriggeredBackgroundSync = true;
-                console.log("Turso is empty. Triggering background sync from Google Sheets...");
+                console.log("Checking background sync from Google Sheets...");
                 // Fire and forget
                 fetchRecordsFromGoogleSheets().then(async (sheetsRecords) => {
-                    if (sheetsRecords.length > 0) {
+                    if (sheetsRecords.length > tursoRecords.length) {
+                        console.log(`Found ${sheetsRecords.length} records in Sheets, compared to ${tursoRecords.length} in Turso. Syncing missing records...`);
                         let count = 0;
+
+                        // 建立 Turso 現有的 id 查詢表加速比對
+                        const existingIds = new Set(tursoRecords.map(r => r.id));
+
                         for (const record of sheetsRecords) {
-                            await saveRecordToTurso(record);
-                            count++;
+                            if (!existingIds.has(record.id)) {
+                                await saveRecordToTurso(record);
+                                count++;
+                            }
                         }
-                        console.log(`Background sync completed. Migrated ${count} records to Turso. Refresh app to see them if they haven't appeared.`);
+                        console.log(`Background sync completed. Migrated ${count} missing records to Turso. Refresh app to see them if they haven't appeared.`);
+                    } else {
+                        console.log("Turso is already up-to-date with Sheets, or Sheets has fewer records.");
                     }
                 }).catch(e => console.error("Background sync failed:", e));
             }

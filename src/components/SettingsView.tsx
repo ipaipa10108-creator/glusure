@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { UserSettings, DEFAULT_THRESHOLDS, DEFAULT_AUXILIARY_COLORS, AuxiliaryColors, DEFAULT_ALERT_POINT_COLOR } from '../types';
-import { updateUserSettings } from '../utils/api';
-import { Save, Lock, ChevronLeft, Mail, X } from 'lucide-react';
+import { updateUserSettings, migrateDataToTurso } from '../utils/api';
+import { isTursoConfigured } from '../utils/tursoApi';
+import { Save, Lock, ChevronLeft, Mail, X, Download, RefreshCw } from 'lucide-react';
 
 // Helper: Convert rgba to hex (for color input)
 const rgbaToHex = (rgba: string): string => {
@@ -10,7 +11,7 @@ const rgbaToHex = (rgba: string): string => {
     const r = parseInt(match[1]).toString(16).padStart(2, '0');
     const g = parseInt(match[2]).toString(16).padStart(2, '0');
     const b = parseInt(match[3]).toString(16).padStart(2, '0');
-    return `#${r}${g}${b}`;
+    return `#${r}${g}${b} `;
 };
 
 // Helper: Convert hex to rgba
@@ -23,7 +24,7 @@ const hexToRgba = (hex: string, alpha: number): string => {
 
 interface SettingsViewProps {
     user: UserSettings;
-    onUpdate: (settings: UserSettings) => void;
+    onUpdate: (settings: Partial<UserSettings>) => Promise<void>;
     onBack: () => void;
 }
 
@@ -39,6 +40,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
         ...DEFAULT_AUXILIARY_COLORS,
         ...user.auxiliaryColors
     });
+
+    // Migration State
+    const [isMigrating, setIsMigrating] = useState(false);
+    const [migrationMessage, setMigrationMessage] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -472,6 +477,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                         </div>
                     </section >
 
+                    {/* 資料備份與轉移區塊 */}
+                    <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center space-y-4">
+                        <div className="bg-teal-50 p-4 rounded-full">
+                            <Download className="h-8 w-8 text-teal-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-800">強制從 Google Sheets 同步資料</h3>
+                            <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                                系統預設會在背景自動處理備份。但如果您更換了裝置，或發現 Turso 資料庫因為網路問題沒同步完整，可以點擊下方按鈕強制從 Google Sheets 重新下載所有資料覆蓋到 Turso 中。
+                            </p>
+                        </div>
+                        {isTursoConfigured ? (
+                            <div className="w-full flex flex-col items-center">
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        if (!window.confirm("警告：這將會從 Google Sheets 下載所有「舊資料」並覆蓋寫回 Turso。(如果 Turso 裡有較新的資料但沒寫在 Sheets 上，可能會導致舊蓋新影響順序)。您確定要繼續嗎？")) return;
+                                        setIsMigrating(true);
+                                        setMigrationMessage('正在從 Google Sheets 讀取並轉移至 Turso...');
+                                        const result = await migrateDataToTurso(user.name);
+                                        setMigrationMessage(result.message);
+                                        setIsMigrating(false);
+                                        if (result.success) {
+                                            setTimeout(() => window.location.reload(), 2000);
+                                        }
+                                    }}
+                                    disabled={isMigrating}
+                                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 cursor-pointer shadow disabled:bg-blue-300 font-medium"
+                                >
+                                    {isMigrating ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+                                    {isMigrating ? '備份轉移中...' : '開始同步至 Turso'}
+                                </button>
+                                {migrationMessage && (
+                                    <p className={`mt - 3 text - sm font - medium ${migrationMessage.includes('成功') ? 'text-green-600' : 'text-amber-600'} `}>
+                                        {migrationMessage}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-red-500 font-medium">您尚未設定 Turso 金鑰 (VITE_TURSO_DATABASE_URL)</p>
+                        )}
+                    </section>
+
                     <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <button
@@ -489,7 +537,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdate, onBa
                             >
                                 恢復預設值
                             </button>
-                            <span className={`text-sm font-medium ${message.includes('成功') ? 'text-green-600' : 'text-red-500'}`}>
+                            <span className={`text - sm font - medium ${message.includes('成功') ? 'text-green-600' : 'text-red-500'} `}>
                                 {message}
                             </span>
                         </div>
