@@ -11,7 +11,7 @@ const rgbaToHex = (rgba: string): string => {
     const r = parseInt(match[1]).toString(16).padStart(2, '0');
     const g = parseInt(match[2]).toString(16).padStart(2, '0');
     const b = parseInt(match[3]).toString(16).padStart(2, '0');
-    return `#${r}${g}${b} `;
+    return `#${r}${g}${b}`;
 };
 
 // Helper: Convert hex to rgba
