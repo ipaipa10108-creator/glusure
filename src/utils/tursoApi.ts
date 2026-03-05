@@ -6,6 +6,11 @@ const VITE_TURSO_AUTH_TOKEN = import.meta.env.VITE_TURSO_AUTH_TOKEN || "";
 
 export const isTursoConfigured = !!VITE_TURSO_DB_URL && !!VITE_TURSO_AUTH_TOKEN;
 
+console.log("Turso Configuration Status:");
+console.log("- DB URL explicitly configured:", !!VITE_TURSO_DB_URL);
+console.log("- Auth Token explicitly configured:", !!VITE_TURSO_AUTH_TOKEN);
+console.log("- isTursoConfigured:", isTursoConfigured);
+
 export const tursoClient = isTursoConfigured ? createClient({
     url: VITE_TURSO_DB_URL,
     authToken: VITE_TURSO_AUTH_TOKEN,
