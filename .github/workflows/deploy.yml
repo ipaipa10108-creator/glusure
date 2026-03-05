@@ -38,11 +38,7 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_TURSO_DATABASE_URL: ${{ secrets.VITE_TURSO_DATABASE_URL }}
           VITE_TURSO_AUTH_TOKEN: ${{ secrets.VITE_TURSO_AUTH_TOKEN }}
-<<<<<<< HEAD
           
-=======
-
->>>>>>> 0d09546fc3b8c4b6cb5f0be3e04b1d87b3c8549b
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
